@@ -75,6 +75,12 @@ async def _tick(hass: HomeAssistant, freezer, when: datetime) -> None:
     await hass.async_block_till_done()
 
 
+def _device(hass, entry, ident):
+    """Dispositivo della voce con quell'identificativo: cercato così la prova vale per ogni versione di Home Assistant."""
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    return next((d for d in devices if (DOMAIN, ident) in d.identifiers), None)
+
+
 def _ctrl(hass: HomeAssistant, entry):
     return hass.data[DOMAIN][entry.entry_id]
 
@@ -169,7 +175,7 @@ async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
     eid = _eid(hass, entry, sid, "energia_oggi")
     assert eid == "sensor.consumi_forno_energia_oggi"
     assert er.async_get(hass).async_get(eid).config_subentry_id == sid
-    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, sid), entry.entry_id)
+    device = _device(hass, entry, sid)
     assert device.name == "Consumi Forno"
 
     # un altro con lo stesso nome: no
@@ -194,7 +200,7 @@ async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
     assert hass.config_entries.async_remove_subentry(entry, sid)
     await hass.async_block_till_done()
     assert er.async_get(hass).async_get(eid) is None
-    assert dr.async_get(hass).async_get_device_by_identifier((DOMAIN, sid), entry.entry_id) is None
+    assert _device(hass, entry, sid) is None
     assert sid not in _ctrl(hass, entry).ledger.keys()
 
 
