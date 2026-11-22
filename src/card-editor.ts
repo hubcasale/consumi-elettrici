@@ -8,6 +8,7 @@ interface FormSchema {
   selector: Record<string, unknown>;
 }
 
+const MANAGED = ["title", "header", "default_tab", "max_rows", "hide_idle", "show_chart", "show_bands", "show_bill"];
 const LABELS: Record<string, string> = {
   title: "Titolo",
   header: "Mostra titolo, fascia e prezzo",
@@ -48,9 +49,10 @@ export class ConsumiElettriciCardEditor extends LitElement {
   private _onForm(ev: CustomEvent<{ value: Record<string, unknown> }>): void {
     ev.stopPropagation();
     const v = ev.detail.value;
-    // si scrive solo quello che è diverso dal comportamento normale: la configurazione resta corta
-    const next: CardConfig = { type: this._config.type };
-    if (this._config.entry_id) next.entry_id = this._config.entry_id;
+    // si scrive solo quello che è diverso dal comportamento normale: la configurazione resta corta.
+    // Le chiavi che non sono di questo editor (grid_options, visibility, entry_id...) restano come sono.
+    const next: CardConfig = { ...this._config };
+    for (const key of MANAGED) delete (next as unknown as Record<string, unknown>)[key];
     if (typeof v.title === "string" && v.title.trim()) next.title = v.title.trim();
     if (v.header === false) next.header = false;
     if (typeof v.default_tab === "string" && v.default_tab !== "now" && TABS.some((t) => t.id === v.default_tab)) next.default_tab = v.default_tab as Tab;
