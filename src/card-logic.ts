@@ -82,12 +82,15 @@ export function rgba(hex: string, alpha: number): string {
 }
 
 // ------------------------------------------------------------------ potenze dal vivo
+/** Oltre questa potenza la lettura è un errore del sensore (certe prese ogni tanto mandano milioni di watt). */
+export const MAX_WATT = 100_000;
 export function parseWatt(state: HassState | undefined): number | null {
   if (!state) return null;
   const v = Number(state.state);
   if (state.state === "" || !Number.isFinite(v)) return null;
   const unit = String(state.attributes.unit_of_measurement ?? "W").toLowerCase();
-  return unit === "kw" ? v * 1000 : unit === "mw" ? v * 1_000_000 : v;
+  const w = unit === "kw" ? v * 1000 : unit === "mw" ? v * 1_000_000 : v;
+  return Math.abs(w) <= MAX_WATT ? w : null;
 }
 
 export interface LivePowers {

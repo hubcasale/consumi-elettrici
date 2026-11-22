@@ -35,6 +35,7 @@ from .engine import (
     LIVE_PERIODS,
     MAX_CATCHUP,
     MAX_HOUR_KWH,
+    MAX_WATT,
     METER,
     OVERLOAD_AVAILABLE,
     PERIODS,
@@ -182,7 +183,7 @@ class ConsumiController:
         src = self.sources.get(key)
         if src is None:
             return None
-        values = [to_watt(*n) for ent in src.power_entities if (n := self._number(ent)) is not None]
+        values = [w for ent in src.power_entities if (n := self._number(ent)) is not None and abs(w := to_watt(*n)) <= MAX_WATT]
         return sum(values) if values else None
 
     def _price_lookup(self, entity_id: str) -> float | None:

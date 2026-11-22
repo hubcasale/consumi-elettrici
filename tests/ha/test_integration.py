@@ -301,6 +301,15 @@ async def test_energy_from_power_when_there_is_no_counter(hass: HomeAssistant, f
     assert float(_state(hass, entry, "generale", "picco_oggi").state) == 1000
 
 
+async def test_impossible_power_reading_is_ignored(hass: HomeAssistant, freezer) -> None:
+    entry = await _setup(hass, freezer)
+    _w(hass, LAV_W, 3284256)               # certe prese ogni tanto mandano milioni di watt
+    await hass.async_block_till_done()
+    await _tick(hass, freezer, T0 + timedelta(minutes=1))
+    assert _ctrl(hass, entry).power("lav") is None
+    assert float(_state(hass, entry, "generale_non_monitorato", "potenza").state) == 1000
+
+
 async def test_units_and_several_meter_lines(hass: HomeAssistant, freezer) -> None:
     hass.states.async_set("sensor.linea2_power", "1.5", {"unit_of_measurement": "kW"})
     _kwh(hass, "sensor.linea2_energy", 2_000_000, "Wh")

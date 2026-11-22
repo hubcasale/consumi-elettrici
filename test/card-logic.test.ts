@@ -65,6 +65,7 @@ test("colori: fissi per posizione nell'elenco, grigio dal nono", () => {
 test("potenze dal vivo", () => {
   assert.equal(parseWatt(st("2.1", "kW")), 2100);
   assert.equal(parseWatt(st("unavailable")), null);
+  assert.equal(parseWatt(st("3284256")), null);              // valore impossibile di una presa
   assert.equal(parseWatt(undefined), null);
   const live = livePowers(info(), STATES);
   assert.equal(live.meter, 3000);

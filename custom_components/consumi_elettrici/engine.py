@@ -16,6 +16,7 @@ METER = "_meter"                 # chiave del contatore generale
 UNMONITORED = "_unmonitored"     # chiave (calcolata) della quota non monitorata
 
 MAX_KW = 25.0                    # oltre questa potenza media un salto del contatore di energia è un errore di lettura
+MAX_WATT = 100_000.0             # una potenza oltre questo valore è un errore del sensore (capita con certe prese): si ignora
 MAX_GAP = 600                    # secondi: oltre, la potenza non si integra (Home Assistant fermo)
 MAX_CATCHUP = 6 * 3600           # secondi di fermo dell'integrazione oltre i quali i contatori ripartono da capo (ci pensa lo storico)
 MAX_HOUR_KWH = 100.0             # un'ora di storico oltre questo valore si scarta
