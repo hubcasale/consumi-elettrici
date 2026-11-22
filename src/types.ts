@@ -55,6 +55,7 @@ export interface BillEstimate {
   trasporto: number;
   oneri: number;
   accise: number;
+  altro?: number;
   iva: number;
   totale: number;
 }

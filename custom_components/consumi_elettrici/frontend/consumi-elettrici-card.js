@@ -99,7 +99,7 @@ var ee=Object.defineProperty;var se=Object.getOwnPropertyDescriptor;var g=(o,e,t
         ${l&&this._stats?p`<consumi-bars .labels=${this._stats.labels} .values=${l.k} .costs=${l.c} .color=${this.color}></consumi-bars>`:p`<div class="note">Carico…</div>`}
         ${n&&this.moreInfo?p`<div class="foot"><button class="btn" @click=${()=>{this.moreInfo?.(n),this._close()}}>Apri il sensore</button></div>`:h}
       </div>
-    `}_renderBill(){let t=this.info.bill,s=[{id:"month",label:X(this.info.now)},{id:"last_month",label:X(this.info.now,-1)},{id:"year",label:"Anno"}],i=t[this._billPeriod],n=i?[["Energia",i.energia],["Trasporto e contatore",i.trasporto],["Oneri di sistema",i.oneri],["Accise",i.accise],["IVA",i.iva]]:[];return p`
+    `}_renderBill(){let t=this.info.bill,s=[{id:"month",label:X(this.info.now)},{id:"last_month",label:X(this.info.now,-1)},{id:"year",label:"Anno"}],i=t[this._billPeriod],n=i?[["Energia",i.energia],["Trasporto e contatore",i.trasporto],["Oneri di sistema",i.oneri],["Accise",i.accise],...i.altro?[["Altre partite",i.altro]]:[],["IVA",i.iva]]:[];return p`
       <div class="head">
         <span class="shape neutral"><ha-icon icon="mdi:receipt-text-outline"></ha-icon></span>
         <div class="title">Bolletta stimata</div>

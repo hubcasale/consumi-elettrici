@@ -125,12 +125,13 @@ async def test_options_pages(hass: HomeAssistant, freezer) -> None:
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "bill"})
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"bill_enabled": True, "full_cost": True, "energy_fixed_year": 72, "transport_fixed_year": 20.52, "transport_power_year": 21.24, "transport_kwh": 0.00889,
-         "charges_kwh": 0.0424, "excise_kwh": 0.0227, "vat": 10},
+        {"bill_enabled": True, "full_cost": True, "energy_fixed_year": 72, "energy_extra_kwh": 0.018468, "transport_fixed_year": 20.52, "transport_power_year": 21.24,
+         "transport_kwh": 0.00889, "charges_kwh": 0.0424, "excise_kwh": 0.0227, "vat": 10, "other_month": -7.8},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
-    assert _state(hass, entry, "generale", "bolletta_mese") is not None
+    assert _state(hass, entry, "generale", "bolletta_mese").attributes["altro"] == -7.8
+    assert entry.options["other_month"] == -7.8
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "alerts"})

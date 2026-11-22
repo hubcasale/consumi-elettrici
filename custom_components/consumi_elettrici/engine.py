@@ -184,7 +184,9 @@ class Bill:
 
     enabled: bool = False
     full_cost: bool = True            # i costi comprendono trasporto, oneri, accise e IVA
-    energy_fixed_year: float = 0.0    # quota fissa materia energia, EUR/anno
+    energy_fixed_year: float = 0.0    # quota fissa materia energia (commercializzazione), EUR/anno
+    energy_extra_kwh: float = 0.0     # altri corrispettivi dell'energia al kWh non compresi nel prezzo (dispacciamento)
+    other_month: float = 0.0          # altre partite al mese, con il segno (uno sconto è negativo)
     transport_fixed_year: float = 0.0  # quota fissa trasporto, EUR/anno
     transport_power_year: float = 0.0  # quota potenza, EUR/kW/anno
     transport_kwh: float = 0.0
@@ -197,24 +199,26 @@ class Bill:
         """Costo di un consumo: solo energia, oppure con le quote variabili e l'IVA."""
         if not (self.enabled and self.full_cost):
             return energy_eur
-        return (energy_eur + kwh * (self.transport_kwh + self.charges_kwh + self.excise_kwh)) * (1 + self.vat / 100)
+        return (energy_eur + kwh * (self.energy_extra_kwh + self.transport_kwh + self.charges_kwh + self.excise_kwh)) * (1 + self.vat / 100)
 
     def estimate(self, kwh: float, energy_eur: float, months: float = 1.0) -> dict[str, float]:
         """Bolletta stimata di un periodo lungo `months` mesi (le quote fisse sono annue)."""
         share = months / 12
-        energia = energy_eur + self.energy_fixed_year * share
+        energia = energy_eur + kwh * self.energy_extra_kwh + self.energy_fixed_year * share
+        altro = self.other_month * months
         trasporto = kwh * self.transport_kwh + (self.transport_fixed_year + self.transport_power_year * self.contract_kw) * share
         oneri = kwh * self.charges_kwh
         accise = kwh * self.excise_kwh
-        iva = (energia + trasporto + oneri + accise) * self.vat / 100
+        iva = (energia + trasporto + oneri + accise + altro) * self.vat / 100
         return {
             "kwh": round(kwh, 3),
             "energia": round(energia, 2),
             "trasporto": round(trasporto, 2),
             "oneri": round(oneri, 2),
             "accise": round(accise, 2),
+            "altro": round(altro, 2),
             "iva": round(iva, 2),
-            "totale": round(energia + trasporto + oneri + accise + iva, 2),
+            "totale": round(energia + trasporto + oneri + accise + altro + iva, 2),
         }
 
 
@@ -223,6 +227,8 @@ def parse_bill(options: dict[str, Any]) -> Bill:
         enabled=bool(options.get("bill_enabled", False)),
         full_cost=bool(options.get("full_cost", True)),
         energy_fixed_year=_num(options.get("energy_fixed_year"), 0.0, 0, 10000),
+        energy_extra_kwh=_num(options.get("energy_extra_kwh"), 0.0, 0, 5),
+        other_month=_num(options.get("other_month"), 0.0, -10000, 10000),
         transport_fixed_year=_num(options.get("transport_fixed_year"), 0.0, 0, 10000),
         transport_power_year=_num(options.get("transport_power_year"), 0.0, 0, 10000),
         transport_kwh=_num(options.get("transport_kwh"), 0.0, 0, 5),
@@ -620,7 +626,8 @@ def monthly_report(
     lines = [first + "."]
     if bill:
         lines.append(f"Bolletta stimata: {fmt(bill['totale'], 2)} €")
-        lines.append(f"  energia {fmt(bill['energia'], 2)} € · trasporto {fmt(bill['trasporto'], 2)} € · oneri {fmt(bill['oneri'], 2)} € · accise e IVA {fmt(bill['accise'] + bill['iva'], 2)} €")
+        other = f" · altre partite {fmt(bill['altro'], 2)} €" if bill.get("altro") else ""
+        lines.append(f"  energia {fmt(bill['energia'], 2)} € · trasporto {fmt(bill['trasporto'], 2)} € · oneri {fmt(bill['oneri'], 2)} € · accise e IVA {fmt(bill['accise'] + bill['iva'], 2)} €{other}")
     else:
         lines.append(f"Costo: {fmt(cost, 2)} €")
     if sum(bands) > 0:

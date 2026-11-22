@@ -131,7 +131,7 @@ export class ConsumiDetailDialog extends LitElement {
     ];
     const est: BillEstimate | undefined = bill[this._billPeriod];
     const rows: [string, number][] = est
-      ? [["Energia", est.energia], ["Trasporto e contatore", est.trasporto], ["Oneri di sistema", est.oneri], ["Accise", est.accise], ["IVA", est.iva]]
+      ? [["Energia", est.energia], ["Trasporto e contatore", est.trasporto], ["Oneri di sistema", est.oneri], ["Accise", est.accise], ...(est.altro ? ([["Altre partite", est.altro]] as [string, number][]) : []), ["IVA", est.iva]]
       : [];
     return html`
       <div class="head">

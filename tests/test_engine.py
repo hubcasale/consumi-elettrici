@@ -245,6 +245,24 @@ def test_bill_matches_the_old_package_formula():
     assert bill.cost(10, 1.03) == pytest.approx((1.03 + 10 * (0.008890 + 0.0424393 + 0.0227)) * 1.1)
 
 
+def test_bill_reproduces_a_real_bill():
+    # bolletta di agosto 2026: 635 kWh, prezzo con perdite 0,099, dispacciamento 0,018468, sconto mensile di 7,80
+    bill = e.parse_bill(
+        {"bill_enabled": True, "energy_fixed_year": 72.08, "energy_extra_kwh": 0.018468, "transport_fixed_year": 23.04, "transport_power_year": 23.72,
+         "transport_kwh": 0.01473, "charges_kwh": 0.033153, "excise_kwh": 0.0227, "vat": 10, "other_month": -7.80, "contract_kw": 3}
+    )
+    out = bill.estimate(635, 635 * 0.099)
+    assert out["energia"] == pytest.approx(80.65, abs=0.06)
+    assert out["trasporto"] == pytest.approx(17.20, abs=0.01)
+    assert out["oneri"] == pytest.approx(21.05, abs=0.01)
+    assert out["accise"] == pytest.approx(14.42, abs=0.01)
+    assert out["altro"] == -7.80
+    assert out["iva"] == pytest.approx(12.55, abs=0.01)
+    assert out["totale"] == pytest.approx(138.07, abs=0.06)
+    # un kWh in più costa: energia, dispacciamento, trasporto, oneri, accise, più IVA
+    assert bill.cost(1, 0.099) == pytest.approx(0.2069, abs=0.0001)
+
+
 def test_cost_is_energy_only_when_bill_is_off():
     assert e.parse_bill({}).cost(10, 2.5) == 2.5
     assert e.parse_bill({"bill_enabled": True, "full_cost": False, "transport_kwh": 0.1}).cost(10, 2.5) == 2.5
@@ -321,12 +339,14 @@ def test_overload_short_spike_does_not_alert():
 
 # ------------------------------------------------------------------ testi
 def test_monthly_report_text():
-    bill = {"kwh": 500, "energia": 60.0, "trasporto": 10.0, "oneri": 20.0, "accise": 11.35, "iva": 10.14, "totale": 111.49}
+    bill = {"kwh": 500, "energia": 60.0, "trasporto": 10.0, "oneri": 20.0, "accise": 11.35, "altro": 0.0, "iva": 10.14, "totale": 111.49}
     title, text = e.monthly_report(date(2030, 9, 1), 500.0, 400.0, 95.0, bill, [100, 150, 250], [("Wallbox", 200.0, 38.0), ("Lavatrice", 50.0, 9.5)], 120.0)
     assert title == "Consumi di settembre 2030"
     assert "Hai consumato 500,0 kWh (+25% sul mese prima)." in text
     assert "Bolletta stimata: 111,49 €" in text
     assert "accise e IVA 21,49 €" in text
+    assert "altre partite" not in text
+    assert "altre partite -7,80 €" in e.monthly_report(date(2030, 9, 1), 500.0, 400.0, 95.0, {**bill, "altro": -7.8}, [0, 0, 0], [], 0.0)[1]
     assert "Fasce: F1 100 · F2 150 · F3 250 kWh" in text
     assert "1. Wallbox: 200,0 kWh (40%), 38,00 €" in text
     assert "Non monitorato: 120,0 kWh (24%)" in text

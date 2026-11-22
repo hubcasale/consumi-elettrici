@@ -24,6 +24,8 @@ CONF_ENTITY_F3 = "entity_f3"
 CONF_BILL = "bill_enabled"
 CONF_FULL_COST = "full_cost"
 CONF_ENERGY_FIXED = "energy_fixed_year"
+CONF_ENERGY_EXTRA_KWH = "energy_extra_kwh"
+CONF_OTHER_MONTH = "other_month"
 CONF_TRANSPORT_FIXED = "transport_fixed_year"
 CONF_TRANSPORT_POWER = "transport_power_year"
 CONF_TRANSPORT_KWH = "transport_kwh"
@@ -62,6 +64,8 @@ DEFAULTS = {
     CONF_BILL: False,
     CONF_FULL_COST: True,
     CONF_ENERGY_FIXED: 0.0,
+    CONF_ENERGY_EXTRA_KWH: 0.0,
+    CONF_OTHER_MONTH: 0.0,
     CONF_TRANSPORT_FIXED: 0.0,
     CONF_TRANSPORT_POWER: 0.0,
     CONF_TRANSPORT_KWH: 0.0,

@@ -80,6 +80,8 @@
           "bill_enabled": "Stima la bolletta",
           "full_cost": "Costi comprensivi di trasporto, oneri, accise e IVA",
           "energy_fixed_year": "Quota fissa materia energia",
+          "energy_extra_kwh": "Altri corrispettivi dell'energia al kWh",
+          "other_month": "Altre partite al mese",
           "transport_fixed_year": "Quota fissa trasporto",
           "transport_power_year": "Quota potenza",
           "transport_kwh": "Trasporto, quota energia",
@@ -88,6 +90,14 @@
           "vat": "IVA"
         },
         "data_description": {
+          "energy_fixed_year": "Commercializzazione e altre quote fisse della materia energia, sommate su un anno.",
+          "energy_extra_kwh": "Voci della materia energia che non sono nel prezzo, per esempio il dispacciamento (CdispD). Se il prezzo non comprende le perdite di rete, aggiungile qui.",
+          "transport_fixed_year": "Trasporto quota fissa, su un anno.",
+          "transport_power_year": "Trasporto quota potenza più UC6 fisso, per kW e su un anno.",
+          "transport_kwh": "Trasporto quota energia più UC3 e UC6 variabile.",
+          "charges_kwh": "ASOS più ARIM.",
+          "excise_kwh": "Imposta erariale: 0,0227 €/kWh. Sotto i 370 kWh al mese, per residenti fino a 3 kW, una parte è esente: qui non se ne tiene conto.",
+          "other_month": "Sconti o addebiti fissi mensili, con il segno: uno sconto di 7,80 € si scrive -7,80.",
           "full_cost": "Se attivo, i costi di contatore e consumatori sono quelli veri in bolletta (senza le quote fisse); altrimenti solo l'energia."
         }
       },

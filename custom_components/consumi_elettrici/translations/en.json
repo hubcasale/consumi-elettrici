@@ -80,6 +80,8 @@
           "bill_enabled": "Estimate the bill",
           "full_cost": "Costs include transport, charges, excise and VAT",
           "energy_fixed_year": "Energy fixed fee",
+          "energy_extra_kwh": "Other energy charges per kWh",
+          "other_month": "Other items per month",
           "transport_fixed_year": "Transport fixed fee",
           "transport_power_year": "Power fee",
           "transport_kwh": "Transport, per kWh",
@@ -88,6 +90,14 @@
           "vat": "VAT"
         },
         "data_description": {
+          "energy_fixed_year": "Retail fee and other fixed energy items, summed over a year.",
+          "energy_extra_kwh": "Energy items not included in the price, such as dispatching. If the price excludes grid losses, add them here.",
+          "transport_fixed_year": "Transport fixed fee, over a year.",
+          "transport_power_year": "Transport power fee, per kW and over a year.",
+          "transport_kwh": "Transport energy fee plus the variable UC components.",
+          "charges_kwh": "ASOS plus ARIM.",
+          "excise_kwh": "Excise duty per kWh. The exemption for low monthly consumption is not modelled.",
+          "other_month": "Fixed monthly discounts or charges, signed: a 7.80 discount is -7.80.",
           "full_cost": "When on, meter and consumer costs are the real billed ones (without fixed fees); otherwise energy only."
         }
       },

@@ -64,7 +64,19 @@ Con la stima della bolletta attiva, il **costo** di contatore e consumatori comp
 cioè quanto quei kWh pesano davvero in bolletta; le quote fisse entrano solo nella bolletta stimata. Disattivando *Costi comprensivi…* il
 costo torna a essere energia × prezzo.
 
-La bolletta stimata usa le voci che inserisci (le trovi sulla bolletta): è una stima, non sostituisce quella del fornitore.
+La bolletta stimata usa le voci che inserisci: è una stima, non sostituisce quella del fornitore. Si trovano nella pagina
+«Elementi di dettaglio» della bolletta:
+
+| Campo | Dove si legge |
+| --- | --- |
+| Quota fissa materia energia | commercializzazione e altre quote fisse al mese × 12 |
+| Altri corrispettivi dell'energia al kWh | dispacciamento (CdispD) e, se il prezzo non le comprende, le perdite di rete |
+| Quota fissa trasporto | trasporto quota fissa al mese × 12 |
+| Quota potenza | (trasporto quota potenza + UC6 fisso) al kW al mese × 12 |
+| Trasporto, quota energia | trasporto quota energia + UC3 + UC6 variabile |
+| Oneri di sistema | ASOS + ARIM |
+| Accise | imposta erariale al kWh |
+| Altre partite al mese | sconti o addebiti fissi, con il segno |
 
 ### Sovraccarico
 
@@ -153,6 +165,9 @@ automation:
   recuperano dalle statistiche, quando ci sono.
 * I salti impossibili di un contatore (più di 25 kW medi) si scartano: capita con le prese che ogni tanto mandano valori sbagliati.
 * Lo storico importato usa il prezzo di oggi, perché quello di allora non è noto.
+* Le accise si contano su tutti i kWh: l'esenzione dei primi kWh per i residenti fino a 3 kW (che sparisce sopra i 370 kWh al mese)
+  non è calcolata.
+* Le voci regolate (trasporto, oneri) cambiano ogni trimestre: vanno aggiornate a mano quando cambiano in bolletta.
 * Dal nono consumatore in poi il colore nei grafici è un grigio comune: otto tinte sono il massimo che si distingue bene.
 
 ## Sviluppo

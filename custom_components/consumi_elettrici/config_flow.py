@@ -16,6 +16,7 @@ from .const import (
     CONF_CONTRACT_KW,
     CONF_CONTRACT_KW_F3,
     CONF_ENERGY_ENTITY,
+    CONF_ENERGY_EXTRA_KWH,
     CONF_ENERGY_FIXED,
     CONF_ENTITY_F1,
     CONF_ENTITY_F2,
@@ -27,6 +28,7 @@ from .const import (
     CONF_METER_POWER,
     CONF_NAME,
     CONF_NOTIFY,
+    CONF_OTHER_MONTH,
     CONF_OVERLOAD,
     CONF_OVERLOAD_MINUTES,
     CONF_OVERLOAD_NOTIFY,
@@ -169,12 +171,14 @@ class ConsumiOptionsFlow(OptionsFlow):
                 vol.Required(CONF_BILL): selector.BooleanSelector(),
                 vol.Required(CONF_FULL_COST): selector.BooleanSelector(),
                 vol.Required(CONF_ENERGY_FIXED): _number(0, 10000, 0.01, "€/anno"),
+                vol.Required(CONF_ENERGY_EXTRA_KWH): _PRICE,
                 vol.Required(CONF_TRANSPORT_FIXED): _number(0, 10000, 0.01, "€/anno"),
                 vol.Required(CONF_TRANSPORT_POWER): _number(0, 10000, 0.01, "€/kW/anno"),
                 vol.Required(CONF_TRANSPORT_KWH): _PRICE,
                 vol.Required(CONF_CHARGES_KWH): _PRICE,
                 vol.Required(CONF_EXCISE_KWH): _PRICE,
                 vol.Required(CONF_VAT): _number(0, 100, 0.1, "%"),
+                vol.Required(CONF_OTHER_MONTH): _number(-1000, 1000, 0.01, "€/mese"),
             }
         )
         return self._page("bill", schema, user_input)
