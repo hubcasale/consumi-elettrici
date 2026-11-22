@@ -1,0 +1,8 @@
+node_modules
+.venv
+.test-build/
+__pycache__/
+*.pyc
+.pytest_cache/
+dev/bundle.js
+.claude/

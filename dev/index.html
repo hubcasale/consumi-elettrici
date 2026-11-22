@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consumi elettrici: pagina di prova</title>
+<style>
+  :root { --card-background-color:#fff; --primary-text-color:#212121; --secondary-text-color:#727272; --divider-color:#e0e0e0; --secondary-background-color:#f2f2f2; --primary-color:#03a9f4; --rgb-primary-color:3,169,244; --warning-color:#ffa600; --error-color:#db4437; }
+  body.dark { --card-background-color:#1c1c1c; --primary-text-color:#e1e1e1; --secondary-text-color:#9b9b9b; --divider-color:#3a3a3a; --secondary-background-color:#2a2a2a; background:#111; }
+  body { margin:0; padding:16px; background:#e9ecef; font-family:Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:480px; margin:0 auto; }
+  ha-card { display:block; background:var(--card-background-color); border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.15); color:var(--primary-text-color); }
+  ha-icon { display:inline-flex; width:var(--mdc-icon-size,24px); height:var(--mdc-icon-size,24px); align-items:center; justify-content:center; }
+</style></head>
+<body><div class="wrap" id="root"></div>
+<script>
+customElements.define('ha-card', class extends HTMLElement{connectedCallback(){this.style.background='var(--card-background-color)';this.style.borderRadius='12px';this.style.boxShadow='0 1px 4px rgba(0,0,0,.15)';this.style.boxSizing='border-box'}});
+// icona finta: un tondino (in Home Assistant c'è l'icona vera)
+customElements.define('ha-icon', class extends HTMLElement{connectedCallback(){this.style.cssText='display:inline-flex;flex:none;width:var(--mdc-icon-size,24px);height:var(--mdc-icon-size,24px)';this.innerHTML='<svg viewBox="0 0 24 24" width="100%" height="100%"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>'}});
+</script>
+<script src="bundle.js"></script>
+<script>
+// Pagina di prova con dati finti. Parametri: theme=dark, tab=now|today|week|month|year, open=<chiave>|_meter|_unmonitored|bill,
+// empty=1 (nessun consumatore), bill=0, load=<W del contatore>, rows=<max_rows>, idle=1, wide=1
+const params = new URLSearchParams(location.search);
+const dark = params.get("theme") === "dark";
+if (dark) document.body.classList.add("dark");
+if (params.get("wide")) document.querySelector(".wrap").style.maxWidth = "780px";
+const PERIODS = ["today","yesterday","week","last_week","month","last_month","year","last_year"];
+const SCALE = { today: 1, yesterday: 1.25, week: 6.4, last_week: 8.1, month: 21.5, last_month: 34, year: 320, last_year: 365 };
+const PRICE = 0.19;
+const periods = (daily) => Object.fromEntries(PERIODS.map((p) => [p, { k: +(daily * SCALE[p]).toFixed(3), c: +(daily * SCALE[p] * PRICE).toFixed(2) }]));
+// [chiave, nome, icona, W adesso, kWh al giorno, sensore di potenza?, sotto il contatore?]
+const defs = params.get("empty") ? [] : [
+  ["wb", "Wallbox", "mdi:ev-station", 4148, 14.2, true, true],
+  ["app", "Appartamento", "mdi:home-floor-1", 1511, 6.3, true, true],
+  ["bagno", "Presa bagno blu", "mdi:radiator", 1074, 2.1, true, true],
+  ["lav", "Lavatrice", "mdi:washing-machine", 0, 0.9, true, true],
+  ["lst", "Lavastoviglie", "mdi:dishwasher", 1.1, 1.1, true, true],
+  ["asc", "Asciugatrice", "mdi:tumble-dryer", 2, 1.6, true, true],
+  ["forno", "Forno", "mdi:stove", 0, 0.8, true, true],
+  ["frigo", "Frigorifero", "mdi:fridge", 24.6, 0.75, true, true],
+  ["caffe", "Macchina del caffè", "mdi:coffee", 0, 0.25, true, true],
+  ["autoclave", "Autoclave", "mdi:water-pump", 0, 0.6, true, true],
+  ["ups", "UPS e server", "mdi:server", null, 2.1, false, true],
+];
+const meterW = Number(params.get("load") || 7399);
+const states = { "sensor.linea_16a_power": { state: String(meterW), attributes: { unit_of_measurement: "W" } } };
+const consumers = defs.map(([key, name, icon, w, daily, hasPower, inMeter]) => {
+  if (hasPower) states[`sensor.${key}_power`] = { state: String(w), attributes: { unit_of_measurement: "W" } };
+  return { key, name, icon, power_entity: hasPower ? `sensor.${key}_power` : null, energy_entity: `sensor.${key}_energy`, in_meter: inMeter, power: w, periods: periods(daily), entities: {} };
+});
+const meterDaily = 38.9;
+const sumDaily = defs.filter((d) => d[6]).reduce((a, d) => a + d[4], 0);
+const bill = (k) => { const e = k * 0.099 + 6, t = k * 0.00889 + 12.3, o = k * 0.0424, a = k * 0.0227, iva = (e + t + o + a) * 0.1; return { kwh: +k.toFixed(1), energia: +e.toFixed(2), trasporto: +t.toFixed(2), oneri: +o.toFixed(2), accise: +a.toFixed(2), iva: +iva.toFixed(2), totale: +(e + t + o + a + iva).toFixed(2) }; };
+const info = {
+  entry_id: "dev", version: "0.1.0", now: new Date().toISOString(),
+  tariff: { mode: "entity", band: 3, price: 0.099, full_price: 0.19 }, contract_kw: 6, available_kw: 6.6, overload: params.get("overload") ? 1 : 0,
+  bill: params.get("bill") === "0" ? { enabled: false } : { enabled: true, month: bill(857), last_month: bill(1316), year: bill(8147), last_year: bill(2062), forecast: bill(1180) },
+  peak: { w: 7421, at: "00:42" },
+  meter: { key: "_meter", name: "Contatore", icon: "mdi:meter-electric", power_entities: ["sensor.linea_16a_power"], energy_entities: ["sensor.linea_16a_energy"], power: meterW, periods: periods(meterDaily),
+    bands: { today: [0, 0, 8.58], yesterday: [0, 12.1, 26.7], week: [61.2, 40.3, 147.5], month: [219.9, 143.9, 493.0], last_month: [253, 184.5, 878.4], year: [1550.8, 1095.7, 5500.9] }, entities: {} },
+  unmonitored: { key: "_unmonitored", power: null, periods: periods(Math.max(meterDaily - sumDaily, 0)) },
+  consumers,
+};
+function stats(granularity, count) {
+  const labels = []; const d = new Date();
+  for (let n = count - 1; n >= 0; n--) {
+    const x = new Date(d);
+    if (granularity === "day") { x.setDate(d.getDate() - n); labels.push(x.toISOString().slice(0, 10)); }
+    else { x.setMonth(d.getMonth() - n, 1); labels.push(x.toISOString().slice(0, 7)); }
+  }
+  const mult = granularity === "day" ? 1 : 30;
+  const wave = (i, seed) => 0.55 + 0.9 * Math.abs(Math.sin(i * 1.7 + seed)) ;
+  const mk = (daily, seed) => { const k = labels.map((_, i) => +(daily * mult * wave(i, seed) * (i === count - 1 ? 0.35 : 1)).toFixed(2)); return { k, c: k.map((v) => +(v * PRICE).toFixed(2)) }; };
+  const series = { _meter: mk(meterDaily, 1), _unmonitored: mk(Math.max(meterDaily - sumDaily, 0), 2) };
+  defs.forEach(([key, , , , daily], i) => { series[key] = mk(daily, i + 3); });
+  if (granularity === "month") for (const s of Object.values(series)) for (let i = 0; i < 4; i++) { s.k[i] = 0; s.c[i] = 0; }   // storico più corto di un anno
+  return { granularity, labels, series };
+}
+const hass = {
+  states, themes: { darkMode: dark },
+  callWS: async (msg) => { await new Promise((r) => setTimeout(r, 60)); if (msg.type.endsWith("/info")) return info; if (msg.type.endsWith("/stats")) return stats(msg.granularity, msg.count); throw new Error("comando sconosciuto"); },
+};
+const card = document.createElement("consumi-elettrici-card");
+const config = { type: "custom:consumi-elettrici-card" };
+if (params.get("tab")) config.default_tab = params.get("tab");
+if (params.get("rows")) config.max_rows = Number(params.get("rows"));
+if (params.get("idle")) config.hide_idle = true;
+card.setConfig(config);
+card.hass = hass;
+document.getElementById("root").appendChild(card);
+window.card = card;
+if (params.get("open")) setTimeout(() => card._open(params.get("open")), 400);
+// la potenza si muove un po', come dal vivo
+setInterval(() => { const s = states["sensor.frigo_power"]; if (s) { s.state = String((20 + Math.random() * 10).toFixed(1)); card.hass = { ...hass }; } }, 3000);
+</script>
+</body></html>

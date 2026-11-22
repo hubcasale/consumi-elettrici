@@ -1,0 +1,272 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Consumi elettrici",
+        "description": "Scegli il contatore generale e il prezzo dell'energia. I consumatori si aggiungono dopo, dalla pagina dell'integrazione.",
+        "data": {
+          "meter_power": "Sensori di potenza del contatore (W)",
+          "meter_energy": "Sensori di energia del contatore (kWh)",
+          "contract_kw": "Potenza del contratto",
+          "price_entity": "Entità con il prezzo dell'energia (€/kWh)",
+          "price": "Prezzo fisso dell'energia"
+        },
+        "data_description": {
+          "meter_power": "Il totale di casa. Con più sensori i valori si sommano.",
+          "meter_energy": "Facoltativo ma consigliato: senza, l'energia si calcola dalla potenza.",
+          "contract_kw": "Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta.",
+          "price_entity": "Per esempio il sensore del fornitore. Se manca o non è disponibile vale il prezzo fisso."
+        }
+      }
+    },
+    "error": {
+      "meter_required": "Scegli almeno un sensore di potenza."
+    },
+    "abort": {
+      "already_configured": "Consumi elettrici è già configurato."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Consumi elettrici",
+        "menu_options": {
+          "meter": "Contatore generale",
+          "tariff": "Tariffa",
+          "bill": "Bolletta",
+          "alerts": "Avvisi e report"
+        }
+      },
+      "meter": {
+        "title": "Contatore generale",
+        "data": {
+          "meter_power": "Sensori di potenza del contatore (W)",
+          "meter_energy": "Sensori di energia del contatore (kWh)",
+          "contract_kw": "Potenza del contratto"
+        },
+        "data_description": {
+          "meter_power": "Il totale di casa. Con più sensori i valori si sommano.",
+          "meter_energy": "Facoltativo ma consigliato: senza, l'energia si calcola dalla potenza.",
+          "contract_kw": "Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta."
+        }
+      },
+      "tariff": {
+        "title": "Tariffa",
+        "description": "Le fasce seguono il calendario ARERA: F1 lun-ven 8-19; F2 lun-ven 7-8 e 19-23, sabato 7-23; F3 notte, domeniche e festivi. I kWh per fascia si contano sempre, anche con il prezzo fisso.",
+        "data": {
+          "tariff_mode": "Tipo di prezzo",
+          "price": "Prezzo fisso",
+          "price_entity": "Entità con il prezzo",
+          "price_f1": "Prezzo F1",
+          "price_f2": "Prezzo F2",
+          "price_f3": "Prezzo F3",
+          "entity_f1": "Entità con il prezzo F1",
+          "entity_f2": "Entità con il prezzo F2",
+          "entity_f3": "Entità con il prezzo F3"
+        },
+        "data_description": {
+          "price": "Vale anche quando l'entità del prezzo non è disponibile.",
+          "entity_f1": "Facoltative: se indicate, hanno la precedenza sui prezzi scritti sopra."
+        }
+      },
+      "bill": {
+        "title": "Bolletta",
+        "description": "Le voci oltre al prezzo dell'energia: le trovi nella bolletta o nelle condizioni del contratto.",
+        "data": {
+          "bill_enabled": "Stima la bolletta",
+          "full_cost": "Costi comprensivi di trasporto, oneri, accise e IVA",
+          "energy_fixed_year": "Quota fissa materia energia",
+          "transport_fixed_year": "Quota fissa trasporto",
+          "transport_power_year": "Quota potenza",
+          "transport_kwh": "Trasporto, quota energia",
+          "charges_kwh": "Oneri di sistema, quota energia",
+          "excise_kwh": "Accise",
+          "vat": "IVA"
+        },
+        "data_description": {
+          "full_cost": "Se attivo, i costi di contatore e consumatori sono quelli veri in bolletta (senza le quote fisse); altrimenti solo l'energia."
+        }
+      },
+      "alerts": {
+        "title": "Avvisi e report",
+        "data": {
+          "notify_services": "Servizi di notifica",
+          "monthly_report": "Report del mese, il primo giorno del mese",
+          "overload_alert": "Avvisa quando si supera la potenza disponibile",
+          "overload_minutes": "Minuti oltre la soglia prima dell'avviso"
+        },
+        "data_description": {
+          "notify_services": "A chi mandare avvisi e report. Gli eventi consumi_elettrici_report e consumi_elettrici_sovraccarico partono comunque.",
+          "overload_alert": "La soglia è la potenza del contratto più il 10%. L'integrazione avvisa soltanto: non spegne nulla."
+        }
+      }
+    },
+    "error": {
+      "meter_required": "Scegli almeno un sensore di potenza.",
+      "entity_required": "Scegli l'entità con il prezzo."
+    }
+  },
+  "config_subentries": {
+    "consumer": {
+      "initiate_flow": {
+        "user": "Aggiungi consumatore"
+      },
+      "entry_type": "Consumatore",
+      "step": {
+        "user": {
+          "title": "Nuovo consumatore",
+          "description": "Qualcosa che consuma e ha un sensore: una presa, una linea, la wallbox. Basta uno dei due sensori.",
+          "data": {
+            "name": "Nome",
+            "icon": "Icona",
+            "power_entity": "Sensore di potenza (W)",
+            "energy_entity": "Sensore di energia (kWh)",
+            "in_meter": "È sotto il contatore generale"
+          },
+          "data_description": {
+            "power_entity": "Serve per la potenza dal vivo. Se manca il sensore di energia, l'energia si calcola da qui.",
+            "energy_entity": "Contatore che cresce nel tempo (kWh o Wh): è la misura più precisa, e porta con sé lo storico.",
+            "in_meter": "Disattiva se il consumatore ha una linea sua, non misurata dal contatore generale: non verrà tolto dalla quota non monitorata."
+          }
+        },
+        "reconfigure": {
+          "title": "Modifica consumatore",
+          "data": {
+            "name": "Nome",
+            "icon": "Icona",
+            "power_entity": "Sensore di potenza (W)",
+            "energy_entity": "Sensore di energia (kWh)",
+            "in_meter": "È sotto il contatore generale"
+          },
+          "data_description": {
+            "power_entity": "Serve per la potenza dal vivo. Se manca il sensore di energia, l'energia si calcola da qui.",
+            "energy_entity": "Contatore che cresce nel tempo (kWh o Wh): è la misura più precisa, e porta con sé lo storico.",
+            "in_meter": "Disattiva se il consumatore ha una linea sua, non misurata dal contatore generale: non verrà tolto dalla quota non monitorata."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Scrivi un nome.",
+        "name_exists": "C'è già un consumatore con questo nome.",
+        "sensor_required": "Scegli almeno un sensore, di potenza o di energia."
+      },
+      "abort": {
+        "reconfigure_successful": "Consumatore aggiornato."
+      }
+    }
+  },
+  "selector": {
+    "tariff_mode": {
+      "options": {
+        "fixed": "Prezzo fisso",
+        "entity": "Prezzo da un'entità",
+        "bands": "Prezzo per fasce F1, F2, F3"
+      }
+    },
+    "report_period": {
+      "options": {
+        "last_month": "Mese scorso",
+        "month": "Mese in corso"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "potenza": {
+        "name": "Potenza"
+      },
+      "non_monitorato_potenza": {
+        "name": "Non monitorato potenza"
+      },
+      "non_monitorato_quota_oggi": {
+        "name": "Non monitorato quota oggi"
+      },
+      "prezzo": {
+        "name": "Prezzo energia"
+      },
+      "fascia": {
+        "name": "Fascia oraria",
+        "state": {
+          "f1": "F1",
+          "f2": "F2",
+          "f3": "F3"
+        }
+      },
+      "picco_oggi": {
+        "name": "Picco di oggi"
+      },
+      "bolletta_mese": {
+        "name": "Bolletta stimata mese"
+      },
+      "bolletta_mese_scorso": {
+        "name": "Bolletta stimata mese scorso"
+      },
+      "bolletta_anno": {
+        "name": "Bolletta stimata anno"
+      },
+      "energia_oggi": {
+        "name": "Energia oggi"
+      },
+      "costo_oggi": {
+        "name": "Costo oggi"
+      },
+      "non_monitorato_energia_oggi": {
+        "name": "Non monitorato energia oggi"
+      },
+      "energia_settimana": {
+        "name": "Energia settimana"
+      },
+      "costo_settimana": {
+        "name": "Costo settimana"
+      },
+      "non_monitorato_energia_settimana": {
+        "name": "Non monitorato energia settimana"
+      },
+      "energia_mese": {
+        "name": "Energia mese"
+      },
+      "costo_mese": {
+        "name": "Costo mese"
+      },
+      "non_monitorato_energia_mese": {
+        "name": "Non monitorato energia mese"
+      },
+      "energia_anno": {
+        "name": "Energia anno"
+      },
+      "costo_anno": {
+        "name": "Costo anno"
+      },
+      "non_monitorato_energia_anno": {
+        "name": "Non monitorato energia anno"
+      }
+    },
+    "binary_sensor": {
+      "sovraccarico": {
+        "name": "Sovraccarico"
+      }
+    }
+  },
+  "services": {
+    "import_history": {
+      "name": "Importa lo storico",
+      "description": "Riempie i giorni mancanti con le statistiche di Home Assistant dei sensori di energia. I giorni già misurati non si toccano.",
+      "fields": {
+        "days": {
+          "name": "Giorni",
+          "description": "Quanti giorni indietro. Vuoto: dall'anno scorso per i sensori nuovi, dieci giorni per gli altri."
+        }
+      }
+    },
+    "send_report": {
+      "name": "Invia il report",
+      "description": "Manda subito il report del mese ai servizi di notifica scelti e lancia l'evento consumi_elettrici_report.",
+      "fields": {
+        "period": {
+          "name": "Periodo",
+          "description": "Mese scorso o mese in corso."
+        }
+      }
+    }
+  }
+}

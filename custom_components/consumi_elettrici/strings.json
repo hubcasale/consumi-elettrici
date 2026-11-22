@@ -1,0 +1,272 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Electricity consumption",
+        "description": "Choose the main meter and the energy price. Consumers are added afterwards, from the integration page.",
+        "data": {
+          "meter_power": "Meter power sensors (W)",
+          "meter_energy": "Meter energy sensors (kWh)",
+          "contract_kw": "Contract power",
+          "price_entity": "Entity with the energy price (€/kWh)",
+          "price": "Fixed energy price"
+        },
+        "data_description": {
+          "meter_power": "The whole-house total. Several sensors are summed.",
+          "meter_energy": "Optional but recommended: without it energy is computed from power.",
+          "contract_kw": "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill.",
+          "price_entity": "For example your supplier's sensor. When missing or unavailable the fixed price is used."
+        }
+      }
+    },
+    "error": {
+      "meter_required": "Choose at least one power sensor."
+    },
+    "abort": {
+      "already_configured": "Electricity consumption is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Electricity consumption",
+        "menu_options": {
+          "meter": "Main meter",
+          "tariff": "Tariff",
+          "bill": "Bill",
+          "alerts": "Alerts and report"
+        }
+      },
+      "meter": {
+        "title": "Main meter",
+        "data": {
+          "meter_power": "Meter power sensors (W)",
+          "meter_energy": "Meter energy sensors (kWh)",
+          "contract_kw": "Contract power"
+        },
+        "data_description": {
+          "meter_power": "The whole-house total. Several sensors are summed.",
+          "meter_energy": "Optional but recommended: without it energy is computed from power.",
+          "contract_kw": "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill."
+        }
+      },
+      "tariff": {
+        "title": "Tariff",
+        "description": "Bands follow the Italian ARERA calendar: F1 Mon-Fri 8-19; F2 Mon-Fri 7-8 and 19-23, Saturday 7-23; F3 nights, Sundays and holidays. kWh per band are always counted, even with a fixed price.",
+        "data": {
+          "tariff_mode": "Price type",
+          "price": "Fixed price",
+          "price_entity": "Price entity",
+          "price_f1": "F1 price",
+          "price_f2": "F2 price",
+          "price_f3": "F3 price",
+          "entity_f1": "F1 price entity",
+          "entity_f2": "F2 price entity",
+          "entity_f3": "F3 price entity"
+        },
+        "data_description": {
+          "price": "Also used when the price entity is unavailable.",
+          "entity_f1": "Optional: when set they take precedence over the prices above."
+        }
+      },
+      "bill": {
+        "title": "Bill",
+        "description": "The items beyond the energy price: you find them on your bill or contract.",
+        "data": {
+          "bill_enabled": "Estimate the bill",
+          "full_cost": "Costs include transport, charges, excise and VAT",
+          "energy_fixed_year": "Energy fixed fee",
+          "transport_fixed_year": "Transport fixed fee",
+          "transport_power_year": "Power fee",
+          "transport_kwh": "Transport, per kWh",
+          "charges_kwh": "System charges, per kWh",
+          "excise_kwh": "Excise",
+          "vat": "VAT"
+        },
+        "data_description": {
+          "full_cost": "When on, meter and consumer costs are the real billed ones (without fixed fees); otherwise energy only."
+        }
+      },
+      "alerts": {
+        "title": "Alerts and report",
+        "data": {
+          "notify_services": "Notify services",
+          "monthly_report": "Monthly report, on the first day of the month",
+          "overload_alert": "Alert when available power is exceeded",
+          "overload_minutes": "Minutes above the threshold before alerting"
+        },
+        "data_description": {
+          "notify_services": "Who receives alerts and reports. The consumi_elettrici_report and consumi_elettrici_sovraccarico events are fired anyway.",
+          "overload_alert": "The threshold is contract power plus 10%. The integration only alerts: it switches nothing off."
+        }
+      }
+    },
+    "error": {
+      "meter_required": "Choose at least one power sensor.",
+      "entity_required": "Choose the price entity."
+    }
+  },
+  "config_subentries": {
+    "consumer": {
+      "initiate_flow": {
+        "user": "Add consumer"
+      },
+      "entry_type": "Consumer",
+      "step": {
+        "user": {
+          "title": "New consumer",
+          "description": "Something that draws power and has a sensor: a plug, a line, the wallbox. One of the two sensors is enough.",
+          "data": {
+            "name": "Name",
+            "icon": "Icon",
+            "power_entity": "Power sensor (W)",
+            "energy_entity": "Energy sensor (kWh)",
+            "in_meter": "It is behind the main meter"
+          },
+          "data_description": {
+            "power_entity": "Used for live power. Without an energy sensor, energy is computed from it.",
+            "energy_entity": "A counter that grows over time (kWh or Wh): the most accurate source, and it brings its history.",
+            "in_meter": "Turn off when the consumer has its own line, not measured by the main meter: it will not be subtracted from the unmonitored share."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit consumer",
+          "data": {
+            "name": "Name",
+            "icon": "Icon",
+            "power_entity": "Power sensor (W)",
+            "energy_entity": "Energy sensor (kWh)",
+            "in_meter": "It is behind the main meter"
+          },
+          "data_description": {
+            "power_entity": "Used for live power. Without an energy sensor, energy is computed from it.",
+            "energy_entity": "A counter that grows over time (kWh or Wh): the most accurate source, and it brings its history.",
+            "in_meter": "Turn off when the consumer has its own line, not measured by the main meter: it will not be subtracted from the unmonitored share."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Enter a name.",
+        "name_exists": "A consumer with this name already exists.",
+        "sensor_required": "Choose at least one sensor, power or energy."
+      },
+      "abort": {
+        "reconfigure_successful": "Consumer updated."
+      }
+    }
+  },
+  "selector": {
+    "tariff_mode": {
+      "options": {
+        "fixed": "Fixed price",
+        "entity": "Price from an entity",
+        "bands": "Price per band F1, F2, F3"
+      }
+    },
+    "report_period": {
+      "options": {
+        "last_month": "Last month",
+        "month": "Current month"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "potenza": {
+        "name": "Power"
+      },
+      "non_monitorato_potenza": {
+        "name": "Unmonitored power"
+      },
+      "non_monitorato_quota_oggi": {
+        "name": "Unmonitored share today"
+      },
+      "prezzo": {
+        "name": "Energy price"
+      },
+      "fascia": {
+        "name": "Time band",
+        "state": {
+          "f1": "F1",
+          "f2": "F2",
+          "f3": "F3"
+        }
+      },
+      "picco_oggi": {
+        "name": "Peak today"
+      },
+      "bolletta_mese": {
+        "name": "Estimated bill this month"
+      },
+      "bolletta_mese_scorso": {
+        "name": "Estimated bill last month"
+      },
+      "bolletta_anno": {
+        "name": "Estimated bill this year"
+      },
+      "energia_oggi": {
+        "name": "Energy today"
+      },
+      "costo_oggi": {
+        "name": "Cost today"
+      },
+      "non_monitorato_energia_oggi": {
+        "name": "Unmonitored energy today"
+      },
+      "energia_settimana": {
+        "name": "Energy this week"
+      },
+      "costo_settimana": {
+        "name": "Cost this week"
+      },
+      "non_monitorato_energia_settimana": {
+        "name": "Unmonitored energy this week"
+      },
+      "energia_mese": {
+        "name": "Energy this month"
+      },
+      "costo_mese": {
+        "name": "Cost this month"
+      },
+      "non_monitorato_energia_mese": {
+        "name": "Unmonitored energy this month"
+      },
+      "energia_anno": {
+        "name": "Energy this year"
+      },
+      "costo_anno": {
+        "name": "Cost this year"
+      },
+      "non_monitorato_energia_anno": {
+        "name": "Unmonitored energy this year"
+      }
+    },
+    "binary_sensor": {
+      "sovraccarico": {
+        "name": "Overload"
+      }
+    }
+  },
+  "services": {
+    "import_history": {
+      "name": "Import history",
+      "description": "Fills missing days from Home Assistant statistics of the energy sensors. Measured days are left untouched.",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "How many days back. Empty: from last year for new sensors, ten days for the others."
+        }
+      }
+    },
+    "send_report": {
+      "name": "Send report",
+      "description": "Sends the monthly report now to the chosen notify services and fires the consumi_elettrici_report event.",
+      "fields": {
+        "period": {
+          "name": "Period",
+          "description": "Last month or current month."
+        }
+      }
+    }
+  }
+}

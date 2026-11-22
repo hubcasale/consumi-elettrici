@@ -1,0 +1,21 @@
+import_history:
+  fields:
+    days:
+      required: false
+      example: 30
+      selector:
+        number:
+          min: 1
+          max: 800
+          mode: box
+send_report:
+  fields:
+    period:
+      required: false
+      default: last_month
+      selector:
+        select:
+          translation_key: report_period
+          options:
+            - last_month
+            - month

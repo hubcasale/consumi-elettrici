@@ -1,0 +1,22 @@
+{
+  "domain": "consumi_elettrici",
+  "name": "Consumi elettrici",
+  "after_dependencies": [
+    "recorder"
+  ],
+  "codeowners": [
+    "@hubcasale"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "frontend",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/hubcasale/consumi-elettrici",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/hubcasale/consumi-elettrici/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
