@@ -8,6 +8,7 @@
           "meter_power": "Sensori di potenza del contatore (W)",
           "meter_energy": "Sensori di energia del contatore (kWh)",
           "contract_kw": "Potenza del contratto",
+          "contract_kw_f3": "Potenza in fascia F3 (0 = uguale)",
           "price_entity": "Entità con il prezzo dell'energia (€/kWh)",
           "price": "Prezzo fisso dell'energia"
         },
@@ -15,6 +16,7 @@
           "meter_power": "Il totale di casa. Con più sensori i valori si sommano.",
           "meter_energy": "Facoltativo ma consigliato: senza, l'energia si calcola dalla potenza.",
           "contract_kw": "Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta.",
+          "contract_kw_f3": "Per chi aderisce alla sperimentazione ARERA per la ricarica dei veicoli elettrici: 6 kW di notte (23-7), la domenica e i festivi. L'avviso di sovraccarico segue la potenza valida in quel momento.",
           "price_entity": "Per esempio il sensore del fornitore. Se manca o non è disponibile vale il prezzo fisso."
         }
       }
@@ -42,12 +44,14 @@
         "data": {
           "meter_power": "Sensori di potenza del contatore (W)",
           "meter_energy": "Sensori di energia del contatore (kWh)",
-          "contract_kw": "Potenza del contratto"
+          "contract_kw": "Potenza del contratto",
+          "contract_kw_f3": "Potenza in fascia F3 (0 = uguale)"
         },
         "data_description": {
           "meter_power": "Il totale di casa. Con più sensori i valori si sommano.",
           "meter_energy": "Facoltativo ma consigliato: senza, l'energia si calcola dalla potenza.",
-          "contract_kw": "Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta."
+          "contract_kw": "Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta.",
+          "contract_kw_f3": "Per chi aderisce alla sperimentazione ARERA per la ricarica dei veicoli elettrici: 6 kW di notte (23-7), la domenica e i festivi. L'avviso di sovraccarico segue la potenza valida in quel momento."
         }
       },
       "tariff": {
@@ -90,13 +94,15 @@
       "alerts": {
         "title": "Avvisi e report",
         "data": {
-          "notify_services": "Servizi di notifica",
+          "notify_services": "A chi mandare il report",
+          "overload_notify": "A chi mandare l'avviso di sovraccarico",
           "monthly_report": "Report del mese, il primo giorno del mese",
           "overload_alert": "Avvisa quando si supera la potenza disponibile",
           "overload_minutes": "Minuti oltre la soglia prima dell'avviso"
         },
         "data_description": {
-          "notify_services": "A chi mandare avvisi e report. Gli eventi consumi_elettrici_report e consumi_elettrici_sovraccarico partono comunque.",
+          "overload_notify": "Vuoto = gli stessi del report.",
+          "notify_services": "Servizi di notifica. Gli eventi consumi_elettrici_report e consumi_elettrici_sovraccarico partono comunque.",
           "overload_alert": "La soglia è la potenza del contratto più il 10%. L'integrazione avvisa soltanto: non spegne nulla."
         }
       }
@@ -121,12 +127,12 @@
             "icon": "Icona",
             "power_entity": "Sensore di potenza (W)",
             "energy_entity": "Sensore di energia (kWh)",
-            "in_meter": "È sotto il contatore generale"
+            "parent": "Si trova sotto"
           },
           "data_description": {
             "power_entity": "Serve per la potenza dal vivo. Se manca il sensore di energia, l'energia si calcola da qui.",
             "energy_entity": "Contatore che cresce nel tempo (kWh o Wh): è la misura più precisa, e porta con sé lo storico.",
-            "in_meter": "Disattiva se il consumatore ha una linea sua, non misurata dal contatore generale: non verrà tolto dalla quota non monitorata."
+            "parent": "Di solito il contatore generale. Se questo consumatore è su una linea che ha già il suo sensore (per esempio «Appartamento»), scegli quella linea: così non viene contato due volte."
           }
         },
         "reconfigure": {
@@ -136,19 +142,20 @@
             "icon": "Icona",
             "power_entity": "Sensore di potenza (W)",
             "energy_entity": "Sensore di energia (kWh)",
-            "in_meter": "È sotto il contatore generale"
+            "parent": "Si trova sotto"
           },
           "data_description": {
             "power_entity": "Serve per la potenza dal vivo. Se manca il sensore di energia, l'energia si calcola da qui.",
             "energy_entity": "Contatore che cresce nel tempo (kWh o Wh): è la misura più precisa, e porta con sé lo storico.",
-            "in_meter": "Disattiva se il consumatore ha una linea sua, non misurata dal contatore generale: non verrà tolto dalla quota non monitorata."
+            "parent": "Di solito il contatore generale. Se questo consumatore è su una linea che ha già il suo sensore (per esempio «Appartamento»), scegli quella linea: così non viene contato due volte."
           }
         }
       },
       "error": {
         "name_required": "Scrivi un nome.",
         "name_exists": "C'è già un consumatore con questo nome.",
-        "sensor_required": "Scegli almeno un sensore, di potenza o di energia."
+        "sensor_required": "Scegli almeno un sensore, di potenza o di energia.",
+        "parent_invalid": "Questa scelta non è possibile: una linea che contiene altri consumatori non può stare sotto un'altra."
       },
       "abort": {
         "reconfigure_successful": "Consumatore aggiornato."

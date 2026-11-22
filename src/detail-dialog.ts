@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import "./bars";
-import { METER, PREVIOUS, UNMONITORED, fmt, fmtEur, fmtKwh, fmtWatt, monthName, rgba } from "./card-logic";
+import { METER, PREVIOUS, UNMONITORED, childrenOf, fmt, fmtEur, fmtKwh, fmtWatt, monthName, rgba } from "./card-logic";
 import type { BillEstimate, ConsumiInfo, ConsumiStats, HomeAssistant, SourceData, Tab } from "./types";
 
 type BillPeriod = "month" | "last_month" | "year";
@@ -66,6 +66,8 @@ export class ConsumiDetailDialog extends LitElement {
     const series = this._stats?.series[this.target];
     const bands = this.target === METER ? this.info.meter.bands.month : undefined;
     const bandSum = bands ? bands.reduce((a, b) => a + b, 0) : 0;
+    const line = this.info.consumers.find((c) => c.key === this.target);
+    const kids = line ? this.info.consumers.filter((c) => childrenOf(this.info, line.key).includes(c.key)) : [];
     return html`
       <div class="head">
         <span class="shape" style="background:${rgba(this.color, 0.2)};color:${this.color}"><ha-icon .icon=${icon}></ha-icon></span>
@@ -91,6 +93,13 @@ export class ConsumiDetailDialog extends LitElement {
           ? html`<div class="sec">Fasce del mese</div>
               <div class="bands">
                 ${bands.map((k, i) => html`<div class="band"><span class="label">F${i + 1}</span><span class="value">${fmtKwh(k)}</span><span class="prev">${Math.round((k / bandSum) * 100)}%</span></div>`)}
+              </div>`
+          : nothing}
+        ${line && kids.length
+          ? html`<div class="sec">Dentro questa linea, questo mese</div>
+              <div class="table">
+                ${kids.map((c) => html`<div class="line"><span>${c.name}</span><span>${fmtKwh(c.periods.month.k)}</span></div>`)}
+                <div class="line"><span>Resto della linea</span><span>${fmtKwh(line.rest?.periods.month.k)}</span></div>
               </div>`
           : nothing}
         ${this.target === METER && this.info.peak.w

@@ -33,4 +33,4 @@ class OverloadSensor(ConsumiEntity, BinarySensorEntity):
         return {"livello": self.snap["overload"], "potenza_contratto_kw": self.snap["contract_kw"], "potenza_disponibile_kw": self.snap["available_kw"]}
 
     def _fingerprint(self) -> Any:
-        return self.snap["overload"]
+        return self.snap["overload"], self.snap["contract_kw"]

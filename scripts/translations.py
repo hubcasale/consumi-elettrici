@@ -16,12 +16,12 @@ consumer_fields = {
         "icon": T("Icona", "Icon"),
         "power_entity": T("Sensore di potenza (W)", "Power sensor (W)"),
         "energy_entity": T("Sensore di energia (kWh)", "Energy sensor (kWh)"),
-        "in_meter": T("È sotto il contatore generale", "It is behind the main meter"),
+        "parent": T("Si trova sotto", "It sits behind"),
     },
     "data_description": {
         "power_entity": T("Serve per la potenza dal vivo. Se manca il sensore di energia, l'energia si calcola da qui.", "Used for live power. Without an energy sensor, energy is computed from it."),
         "energy_entity": T("Contatore che cresce nel tempo (kWh o Wh): è la misura più precisa, e porta con sé lo storico.", "A counter that grows over time (kWh or Wh): the most accurate source, and it brings its history."),
-        "in_meter": T("Disattiva se il consumatore ha una linea sua, non misurata dal contatore generale: non verrà tolto dalla quota non monitorata.", "Turn off when the consumer has its own line, not measured by the main meter: it will not be subtracted from the unmonitored share."),
+        "parent": T("Di solito il contatore generale. Se questo consumatore è su una linea che ha già il suo sensore (per esempio «Appartamento»), scegli quella linea: così non viene contato due volte.", "Usually the main meter. If this consumer is on a line that already has its own sensor (for example \"Apartment\"), choose that line: it will not be counted twice."),
     },
 }
 meter_fields = {
@@ -29,6 +29,7 @@ meter_fields = {
         "meter_power": T("Sensori di potenza del contatore (W)", "Meter power sensors (W)"),
         "meter_energy": T("Sensori di energia del contatore (kWh)", "Meter energy sensors (kWh)"),
         "contract_kw": T("Potenza del contratto", "Contract power"),
+        "contract_kw_f3": T("Potenza in fascia F3 (0 = uguale)", "Power in band F3 (0 = same)"),
         "price_entity": T("Entità con il prezzo dell'energia (€/kWh)", "Entity with the energy price (€/kWh)"),
         "price": T("Prezzo fisso dell'energia", "Fixed energy price"),
     },
@@ -36,6 +37,7 @@ meter_fields = {
         "meter_power": T("Il totale di casa. Con più sensori i valori si sommano.", "The whole-house total. Several sensors are summed."),
         "meter_energy": T("Facoltativo ma consigliato: senza, l'energia si calcola dalla potenza.", "Optional but recommended: without it energy is computed from power."),
         "contract_kw": T("Potenza impegnata (per esempio 3, 4,5 o 6 kW): serve per l'avviso di sovraccarico e per la bolletta.", "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill."),
+        "contract_kw_f3": T("Per chi aderisce alla sperimentazione ARERA per la ricarica dei veicoli elettrici: 6 kW di notte (23-7), la domenica e i festivi. L'avviso di sovraccarico segue la potenza valida in quel momento.", "For the Italian ARERA electric-vehicle trial: 6 kW at night (23-7), on Sundays and holidays. The overload alert follows the power valid at that time."),
         "price_entity": T("Per esempio il sensore del fornitore. Se manca o non è disponibile vale il prezzo fisso.", "For example your supplier's sensor. When missing or unavailable the fixed price is used."),
     },
 }
@@ -49,7 +51,7 @@ DATA = {
     "options": {
         "step": {
             "init": {"title": T("Consumi elettrici", "Electricity consumption"), "menu_options": {"meter": T("Contatore generale", "Main meter"), "tariff": T("Tariffa", "Tariff"), "bill": T("Bolletta", "Bill"), "alerts": T("Avvisi e report", "Alerts and report")}},
-            "meter": {"title": T("Contatore generale", "Main meter"), "data": {k: v for k, v in meter_fields["data"].items() if k in ("meter_power", "meter_energy", "contract_kw")}, "data_description": {k: v for k, v in meter_fields["data_description"].items() if k in ("meter_power", "meter_energy", "contract_kw")}},
+            "meter": {"title": T("Contatore generale", "Main meter"), "data": {k: v for k, v in meter_fields["data"].items() if k in ("meter_power", "meter_energy", "contract_kw", "contract_kw_f3")}, "data_description": {k: v for k, v in meter_fields["data_description"].items() if k in ("meter_power", "meter_energy", "contract_kw", "contract_kw_f3")}},
             "tariff": {
                 "title": T("Tariffa", "Tariff"),
                 "description": T("Le fasce seguono il calendario ARERA: F1 lun-ven 8-19; F2 lun-ven 7-8 e 19-23, sabato 7-23; F3 notte, domeniche e festivi. I kWh per fascia si contano sempre, anche con il prezzo fisso.", "Bands follow the Italian ARERA calendar: F1 Mon-Fri 8-19; F2 Mon-Fri 7-8 and 19-23, Saturday 7-23; F3 nights, Sundays and holidays. kWh per band are always counted, even with a fixed price."),
@@ -86,13 +88,15 @@ DATA = {
             "alerts": {
                 "title": T("Avvisi e report", "Alerts and report"),
                 "data": {
-                    "notify_services": T("Servizi di notifica", "Notify services"),
+                    "notify_services": T("A chi mandare il report", "Who receives the report"),
+                    "overload_notify": T("A chi mandare l'avviso di sovraccarico", "Who receives the overload alert"),
                     "monthly_report": T("Report del mese, il primo giorno del mese", "Monthly report, on the first day of the month"),
                     "overload_alert": T("Avvisa quando si supera la potenza disponibile", "Alert when available power is exceeded"),
                     "overload_minutes": T("Minuti oltre la soglia prima dell'avviso", "Minutes above the threshold before alerting"),
                 },
                 "data_description": {
-                    "notify_services": T("A chi mandare avvisi e report. Gli eventi consumi_elettrici_report e consumi_elettrici_sovraccarico partono comunque.", "Who receives alerts and reports. The consumi_elettrici_report and consumi_elettrici_sovraccarico events are fired anyway."),
+                    "overload_notify": T("Vuoto = gli stessi del report.", "Empty = same as the report."),
+                    "notify_services": T("Servizi di notifica. Gli eventi consumi_elettrici_report e consumi_elettrici_sovraccarico partono comunque.", "Notify services. The consumi_elettrici_report and consumi_elettrici_sovraccarico events are fired anyway."),
                     "overload_alert": T("La soglia è la potenza del contratto più il 10%. L'integrazione avvisa soltanto: non spegne nulla.", "The threshold is contract power plus 10%. The integration only alerts: it switches nothing off."),
                 },
             },
@@ -111,6 +115,7 @@ DATA = {
                 "name_required": T("Scrivi un nome.", "Enter a name."),
                 "name_exists": T("C'è già un consumatore con questo nome.", "A consumer with this name already exists."),
                 "sensor_required": T("Scegli almeno un sensore, di potenza o di energia.", "Choose at least one sensor, power or energy."),
+                "parent_invalid": T("Questa scelta non è possibile: una linea che contiene altri consumatori non può stare sotto un'altra.", "This choice is not possible: a line that contains other consumers cannot sit behind another one."),
             },
             "abort": {"reconfigure_successful": T("Consumatore aggiornato.", "Consumer updated.")},
         }

@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import CLIENT_ID, MockConfigEntry, async_capture_events, async_fire_time_changed, async_mock_service
@@ -25,9 +25,9 @@ T0 = datetime(2030, 10, 23, 10, 0, tzinfo=ROME)      # mercoledì mattina: fasci
 
 CONSUMERS = [
     {"subentry_id": "lav", "subentry_type": "consumer", "title": "Lavatrice", "unique_id": None,
-     "data": {"name": "Lavatrice", "icon": "mdi:washing-machine", "power_entity": LAV_W, "energy_entity": LAV_E, "in_meter": True}},
+     "data": {"name": "Lavatrice", "icon": "mdi:washing-machine", "power_entity": LAV_W, "energy_entity": LAV_E, "parent": "_meter"}},
     {"subentry_id": "caf", "subentry_type": "consumer", "title": "Caffè", "unique_id": None,
-     "data": {"name": "Caffè", "icon": "mdi:coffee", "power_entity": CAF_W, "energy_entity": "", "in_meter": True}},
+     "data": {"name": "Caffè", "icon": "mdi:coffee", "power_entity": CAF_W, "energy_entity": "", "parent": "_meter"}},
 ]
 
 
@@ -83,7 +83,7 @@ def _ctrl(hass: HomeAssistant, entry):
 async def test_config_flow_creates_the_entry(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     assert result["type"] is FlowResultType.FORM
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"meter_power": [M_W], "contract_kw": 6, "price_entity": PRICE, "price": 0.3})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"meter_power": [M_W], "contract_kw": 6, "contract_kw_f3": 0, "price_entity": PRICE, "price": 0.3})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     options = result["options"]
     assert options["meter_power"] == [M_W]
@@ -98,7 +98,7 @@ async def test_config_flow_creates_the_entry(hass: HomeAssistant) -> None:
 
 async def test_config_flow_needs_a_meter(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"meter_power": [], "contract_kw": 3, "price": 0.3})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"meter_power": [], "contract_kw": 3, "contract_kw_f3": 0, "price": 0.3})
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"meter_power": "meter_required"}
 
@@ -140,6 +140,15 @@ async def test_options_pages(hass: HomeAssistant, freezer) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert _ctrl(hass, entry).notify == ["notify.recipient_corrado"]
+    assert _ctrl(hass, entry).overload_notify == ["notify.recipient_corrado"]       # vuoto = gli stessi del report
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "meter"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"meter_power": [M_W], "meter_energy": [M_E], "contract_kw": 3, "contract_kw_f3": 6})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options["contract_kw_f3"] == 6
+    assert _ctrl(hass, entry).contract_kw() == 3                                    # mercoledì mattina: F1
 
 
 async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
@@ -147,9 +156,9 @@ async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
     _w(hass, "sensor.forno_power", 0)
     result = await hass.config_entries.subentries.async_init((entry.entry_id, "consumer"), context={"source": "user"})
     assert result["type"] is FlowResultType.FORM
-    bad = await hass.config_entries.subentries.async_configure(result["flow_id"], {"name": "Forno", "in_meter": True})
+    bad = await hass.config_entries.subentries.async_configure(result["flow_id"], {"name": "Forno", "parent": "_meter"})
     assert bad["errors"] == {"base": "sensor_required"}
-    result = await hass.config_entries.subentries.async_configure(bad["flow_id"], {"name": "Forno", "icon": "mdi:stove", "power_entity": "sensor.forno_power", "in_meter": True})
+    result = await hass.config_entries.subentries.async_configure(bad["flow_id"], {"name": "Forno", "icon": "mdi:stove", "power_entity": "sensor.forno_power", "parent": "_meter"})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     (sid,) = list(entry.subentries)
@@ -164,20 +173,20 @@ async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
 
     # un altro con lo stesso nome: no
     result = await hass.config_entries.subentries.async_init((entry.entry_id, "consumer"), context={"source": "user"})
-    bad = await hass.config_entries.subentries.async_configure(result["flow_id"], {"name": " forno ", "power_entity": "sensor.forno_power", "in_meter": True})
+    bad = await hass.config_entries.subentries.async_configure(result["flow_id"], {"name": " forno ", "power_entity": "sensor.forno_power", "parent": "_meter"})
     assert bad["errors"] == {"name": "name_exists"}
 
     # modifica
     result = await hass.config_entries.subentries.async_init((entry.entry_id, "consumer"), context={"source": "reconfigure", "subentry_id": sid})
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"name": "Forno", "icon": "mdi:stove", "power_entity": "sensor.forno_power", "energy_entity": "sensor.forno_energy", "in_meter": False}
+        result["flow_id"], {"name": "Forno", "icon": "mdi:stove", "power_entity": "sensor.forno_power", "energy_entity": "sensor.forno_energy", "parent": "_none"}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     await hass.async_block_till_done()
     assert _ctrl(hass, entry).consumers[sid].energy_entities == ("sensor.forno_energy",)
-    assert not _ctrl(hass, entry).consumers[sid].in_meter
+    assert _ctrl(hass, entry).consumers[sid].parent == ""
 
     # rimozione: spariscono entità, dispositivo e storico
     _ctrl(hass, entry).ledger.add(sid, T0.date(), 1.0, 0.2)
@@ -186,6 +195,52 @@ async def test_consumer_subentry_flow(hass: HomeAssistant, freezer) -> None:
     assert er.async_get(hass).async_get(eid) is None
     assert dr.async_get(hass).async_get_device_by_identifier((DOMAIN, sid), entry.entry_id) is None
     assert sid not in _ctrl(hass, entry).ledger.keys()
+
+
+async def test_consumer_behind_another_consumer(hass: HomeAssistant, freezer) -> None:
+    """Una linea con il suo sensore (Appartamento) e una presa che ci sta sotto: niente doppi conteggi."""
+    _w(hass, "sensor.app_power", 900)
+    _kwh(hass, "sensor.app_energy", 300.0)
+    consumers = [
+        {"subentry_id": "app", "subentry_type": "consumer", "title": "Appartamento", "unique_id": None,
+         "data": {"name": "Appartamento", "icon": "mdi:home", "power_entity": "sensor.app_power", "energy_entity": "sensor.app_energy", "parent": "_meter"}},
+        {**CONSUMERS[0], "data": {**CONSUMERS[0]["data"], "parent": "app"}},
+    ]
+    entry = await _setup(hass, freezer, consumers=consumers)
+    controller = _ctrl(hass, entry)
+    assert controller.top == ["app"] and controller.children == {"app": ["lav"]}
+    _w(hass, LAV_W, 600)
+    freezer.move_to(T0 + timedelta(minutes=10))
+    _kwh(hass, M_E, 5002.0)
+    _kwh(hass, "sensor.app_energy", 301.0)
+    _kwh(hass, LAV_E, 100.4)
+    await hass.async_block_till_done()
+    await _tick(hass, freezer, T0 + timedelta(minutes=11))
+    # non monitorato = contatore meno la linea (la lavatrice è già dentro la linea)
+    assert float(_state(hass, entry, "generale_non_monitorato", "energia_oggi").state) == pytest.approx(1.0)
+    assert float(_state(hass, entry, "generale_non_monitorato", "potenza").state) == 100
+    assert float(_state(hass, entry, "app", "energia_oggi").state) == pytest.approx(1.0)       # la linea resta quella misurata
+    info = controller.info()
+    app, lav = info["consumers"]
+    assert app["parent"] == METER and lav["parent"] == "app" and lav["in_meter"]
+    assert app["rest"]["power"] == 300
+    assert app["rest"]["periods"]["today"]["k"] == pytest.approx(0.6)
+    assert "rest" not in lav
+
+    # nel modulo: la lavatrice può stare sotto il contatore, sotto l'Appartamento o fuori; l'Appartamento, che ha già un figlio, no
+    flow = await hass.config_entries.subentries.async_init((entry.entry_id, "consumer"), context={"source": "reconfigure", "subentry_id": "lav"})
+    options = flow["data_schema"].schema["parent"].config["options"]
+    assert [o["value"] for o in options] == ["_meter", "app", "_none"]
+    assert options[0]["label"] == "Contatore generale"
+    flow = await hass.config_entries.subentries.async_init((entry.entry_id, "consumer"), context={"source": "reconfigure", "subentry_id": "app"})
+    assert [o["value"] for o in flow["data_schema"].schema["parent"].config["options"]] == ["_meter", "_none"]
+    with pytest.raises(InvalidData):
+        await hass.config_entries.subentries.async_configure(flow["flow_id"], {"name": "Appartamento", "power_entity": "sensor.app_power", "parent": "lav"})
+
+    # tolta la linea, la presa torna sotto il contatore
+    assert hass.config_entries.async_remove_subentry(entry, "app")
+    await hass.async_block_till_done()
+    assert _ctrl(hass, entry).top == ["lav"]
 
 
 # ------------------------------------------------------------------ entità e conti
@@ -426,6 +481,36 @@ async def test_overload_alert(hass: HomeAssistant, freezer) -> None:
         await _tick(hass, freezer, t)
     assert _state(hass, entry, "generale", "sovraccarico", "binary_sensor").state == "off"
     assert len(calls) == 1
+
+
+async def test_overload_follows_the_power_of_the_band(hass: HomeAssistant, freezer) -> None:
+    """Sperimentazione ARERA: 6 kW in F3 (notte, domeniche, festivi), 3 kW nel resto. E l'avviso ha i suoi destinatari."""
+    report_calls = async_mock_service(hass, "notify", "famiglia")
+    alert_calls = async_mock_service(hass, "notify", "corrado")
+    night = T0.replace(hour=23, minute=30)
+    entry = await _setup(hass, freezer, start=night, contract_kw=3, contract_kw_f3=6, notify_services=["notify.famiglia"], overload_notify=["notify.corrado"], overload_minutes=2)
+    _w(hass, M_W, 5200)                                    # la wallbox carica: di notte va bene
+    await hass.async_block_till_done()
+    t = night
+    for _ in range(4):
+        t += timedelta(minutes=1)
+        await _tick(hass, freezer, t)
+    state = _state(hass, entry, "generale", "sovraccarico", "binary_sensor")
+    assert state.state == "off"
+    assert state.attributes["potenza_contratto_kw"] == 6
+    assert state.attributes["potenza_disponibile_kw"] == 6.6
+    assert not alert_calls
+    # alle 7 la potenza torna a 3 kW e la ricarica è ancora in corso
+    t = night.replace(hour=7, minute=0) + timedelta(days=1)
+    for _ in range(4):
+        await _tick(hass, freezer, t)
+        t += timedelta(minutes=1)
+    state = _state(hass, entry, "generale", "sovraccarico", "binary_sensor")
+    assert state.state == "on"
+    assert state.attributes["potenza_contratto_kw"] == 3
+    assert len(alert_calls) == 1
+    assert "5,20 kW su 3,0 kW" in alert_calls[0].data["message"]
+    assert not report_calls                                # l'avviso non va a chi riceve solo il report
 
 
 async def test_report_service_and_automatic_report(hass: HomeAssistant, freezer) -> None:

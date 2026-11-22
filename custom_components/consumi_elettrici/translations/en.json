@@ -8,6 +8,7 @@
           "meter_power": "Meter power sensors (W)",
           "meter_energy": "Meter energy sensors (kWh)",
           "contract_kw": "Contract power",
+          "contract_kw_f3": "Power in band F3 (0 = same)",
           "price_entity": "Entity with the energy price (€/kWh)",
           "price": "Fixed energy price"
         },
@@ -15,6 +16,7 @@
           "meter_power": "The whole-house total. Several sensors are summed.",
           "meter_energy": "Optional but recommended: without it energy is computed from power.",
           "contract_kw": "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill.",
+          "contract_kw_f3": "For the Italian ARERA electric-vehicle trial: 6 kW at night (23-7), on Sundays and holidays. The overload alert follows the power valid at that time.",
           "price_entity": "For example your supplier's sensor. When missing or unavailable the fixed price is used."
         }
       }
@@ -42,12 +44,14 @@
         "data": {
           "meter_power": "Meter power sensors (W)",
           "meter_energy": "Meter energy sensors (kWh)",
-          "contract_kw": "Contract power"
+          "contract_kw": "Contract power",
+          "contract_kw_f3": "Power in band F3 (0 = same)"
         },
         "data_description": {
           "meter_power": "The whole-house total. Several sensors are summed.",
           "meter_energy": "Optional but recommended: without it energy is computed from power.",
-          "contract_kw": "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill."
+          "contract_kw": "Committed power (for example 3, 4.5 or 6 kW): used by the overload alert and the bill.",
+          "contract_kw_f3": "For the Italian ARERA electric-vehicle trial: 6 kW at night (23-7), on Sundays and holidays. The overload alert follows the power valid at that time."
         }
       },
       "tariff": {
@@ -90,13 +94,15 @@
       "alerts": {
         "title": "Alerts and report",
         "data": {
-          "notify_services": "Notify services",
+          "notify_services": "Who receives the report",
+          "overload_notify": "Who receives the overload alert",
           "monthly_report": "Monthly report, on the first day of the month",
           "overload_alert": "Alert when available power is exceeded",
           "overload_minutes": "Minutes above the threshold before alerting"
         },
         "data_description": {
-          "notify_services": "Who receives alerts and reports. The consumi_elettrici_report and consumi_elettrici_sovraccarico events are fired anyway.",
+          "overload_notify": "Empty = same as the report.",
+          "notify_services": "Notify services. The consumi_elettrici_report and consumi_elettrici_sovraccarico events are fired anyway.",
           "overload_alert": "The threshold is contract power plus 10%. The integration only alerts: it switches nothing off."
         }
       }
@@ -121,12 +127,12 @@
             "icon": "Icon",
             "power_entity": "Power sensor (W)",
             "energy_entity": "Energy sensor (kWh)",
-            "in_meter": "It is behind the main meter"
+            "parent": "It sits behind"
           },
           "data_description": {
             "power_entity": "Used for live power. Without an energy sensor, energy is computed from it.",
             "energy_entity": "A counter that grows over time (kWh or Wh): the most accurate source, and it brings its history.",
-            "in_meter": "Turn off when the consumer has its own line, not measured by the main meter: it will not be subtracted from the unmonitored share."
+            "parent": "Usually the main meter. If this consumer is on a line that already has its own sensor (for example \"Apartment\"), choose that line: it will not be counted twice."
           }
         },
         "reconfigure": {
@@ -136,19 +142,20 @@
             "icon": "Icon",
             "power_entity": "Power sensor (W)",
             "energy_entity": "Energy sensor (kWh)",
-            "in_meter": "It is behind the main meter"
+            "parent": "It sits behind"
           },
           "data_description": {
             "power_entity": "Used for live power. Without an energy sensor, energy is computed from it.",
             "energy_entity": "A counter that grows over time (kWh or Wh): the most accurate source, and it brings its history.",
-            "in_meter": "Turn off when the consumer has its own line, not measured by the main meter: it will not be subtracted from the unmonitored share."
+            "parent": "Usually the main meter. If this consumer is on a line that already has its own sensor (for example \"Apartment\"), choose that line: it will not be counted twice."
           }
         }
       },
       "error": {
         "name_required": "Enter a name.",
         "name_exists": "A consumer with this name already exists.",
-        "sensor_required": "Choose at least one sensor, power or energy."
+        "sensor_required": "Choose at least one sensor, power or energy.",
+        "parent_invalid": "This choice is not possible: a line that contains other consumers cannot sit behind another one."
       },
       "abort": {
         "reconfigure_successful": "Consumer updated."

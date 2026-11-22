@@ -11,6 +11,7 @@ SUBENTRY_CONSUMER = "consumer"
 CONF_METER_POWER = "meter_power"            # elenco di sensori di potenza del contatore generale (si sommano)
 CONF_METER_ENERGY = "meter_energy"          # elenco di sensori di energia del contatore generale (si sommano)
 CONF_CONTRACT_KW = "contract_kw"
+CONF_CONTRACT_KW_F3 = "contract_kw_f3"      # potenza in fascia F3, se diversa (0 = uguale)
 CONF_TARIFF_MODE = "tariff_mode"            # fixed | entity | bands
 CONF_PRICE = "price"
 CONF_PRICE_ENTITY = "price_entity"
@@ -30,6 +31,7 @@ CONF_CHARGES_KWH = "charges_kwh"
 CONF_EXCISE_KWH = "excise_kwh"
 CONF_VAT = "vat"
 CONF_NOTIFY = "notify_services"
+CONF_OVERLOAD_NOTIFY = "overload_notify"    # destinatari dell'avviso di sovraccarico (vuoto = gli stessi del report)
 CONF_REPORT = "monthly_report"
 CONF_OVERLOAD = "overload_alert"
 CONF_OVERLOAD_MINUTES = "overload_minutes"
@@ -39,7 +41,7 @@ CONF_NAME = "name"
 CONF_ICON = "icon"
 CONF_POWER_ENTITY = "power_entity"
 CONF_ENERGY_ENTITY = "energy_entity"
-CONF_IN_METER = "in_meter"
+CONF_PARENT = "parent"                      # "_meter", "_none" oppure l'id di un altro consumatore
 
 DEFAULT_PRICE = 0.25
 DEFAULT_ICON = "mdi:power-plug"
@@ -47,6 +49,7 @@ DEFAULTS = {
     CONF_METER_POWER: [],
     CONF_METER_ENERGY: [],
     CONF_CONTRACT_KW: 3.0,
+    CONF_CONTRACT_KW_F3: 0.0,
     CONF_TARIFF_MODE: "fixed",
     CONF_PRICE: DEFAULT_PRICE,
     CONF_PRICE_ENTITY: "",
@@ -66,6 +69,7 @@ DEFAULTS = {
     CONF_EXCISE_KWH: 0.0,
     CONF_VAT: 10.0,
     CONF_NOTIFY: [],
+    CONF_OVERLOAD_NOTIFY: [],
     CONF_REPORT: True,
     CONF_OVERLOAD: True,
     CONF_OVERLOAD_MINUTES: 3,

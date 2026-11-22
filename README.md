@@ -14,6 +14,10 @@ quota **non monitorata**, kWh per fascia F1/F2/F3, **bolletta stimata**, report 
     leggono dalle statistiche di Home Assistant.
   * Con il solo sensore di **potenza** l'energia si calcola da lì, da quando aggiungi il consumatore.
 * **Non monitorato** = contatore generale meno la somma dei consumatori: luci, prese senza sensore, apparecchi in attesa.
+* **Linee con il loro sensore**: un consumatore può stare *sotto* un altro. Se una linea intera ha già una sonda (per esempio
+  «Appartamento») e dentro ci sono prese con il loro sensore, per quelle prese si sceglie *Si trova sotto → Appartamento*: non vengono
+  contate due volte, e in classifica la linea compare con il suo **resto** (quello che misura meno i consumatori che contiene).
+  Un solo livello: una linea che contiene altri consumatori non può stare sotto un'altra.
 * **Costo**: ogni kWh si paga al prezzo del momento in cui è stato consumato. Se il prezzo cambia, il passato non si ricalcola.
 * I dati sono salvati dall'integrazione giorno per giorno: sopravvivono ai riavvii e non dipendono dalla durata del recorder.
 
@@ -37,10 +41,10 @@ Dalla pagina dell'integrazione, **Configura**:
 
 | Pagina | Cosa contiene |
 | --- | --- |
-| **Contatore generale** | sensori di potenza e di energia, potenza del contratto |
+| **Contatore generale** | sensori di potenza e di energia, potenza del contratto e, se diversa, potenza in fascia F3 |
 | **Tariffa** | prezzo fisso, prezzo letto da un'entità (per esempio il sensore del fornitore) oppure prezzi per fascia F1/F2/F3 |
 | **Bolletta** | quota fissa, trasporto, oneri, accise, IVA; se i costi devono comprendere queste voci |
-| **Avvisi e report** | servizi di notifica, report mensile, avviso di sovraccarico |
+| **Avvisi e report** | a chi mandare il report mensile e a chi l'avviso di sovraccarico (due elenchi distinti) |
 
 ### Fasce orarie
 
@@ -63,6 +67,11 @@ costo torna a essere energia × prezzo.
 La bolletta stimata usa le voci che inserisci (le trovi sulla bolletta): è una stima, non sostituisce quella del fornitore.
 
 ### Sovraccarico
+
+Con la **sperimentazione ARERA** per la ricarica dei veicoli elettrici la potenza sale (di solito a 6 kW) di notte dalle 23 alle 7, la
+domenica e i festivi: sono esattamente le ore della fascia F3. Indica quella potenza in *Potenza in fascia F3*: l'avviso e la barra della
+scheda seguono la potenza valida in quel momento, così alle 7 di un giorno feriale vieni avvisato se la ricarica è ancora in corso.
+La quota potenza della bolletta resta calcolata sulla potenza di contratto.
 
 Quando il prelievo supera la potenza disponibile (contratto + 10%) per i minuti scelti arriva un avviso con chi sta consumando di più;
 un secondo avviso parte se il prelievo sale oltre il 33% del contratto, quando il contatore stacca in un paio di minuti.
@@ -102,7 +111,8 @@ show_bill: false
 
 * In alto la **potenza di adesso** con la barra rispetto al contratto, oppure i kWh e il costo del periodo scelto.
 * **Adesso / Oggi / Settimana / Mese / Anno**: la classifica dei consumatori con valore, costo e quota del totale. La barra a segmenti
-  mostra di cosa è fatto il totale; il non monitorato è tratteggiato.
+  mostra di cosa è fatto il totale; il non monitorato è tratteggiato. Ogni riga è una fetta diversa: una linea che contiene altri
+  consumatori compare come «*nome* · resto», e nel suo dettaglio si vedono il totale della linea e chi c'è dentro.
 * **Grafico** dei kWh per giorno o per mese: toccando una colonna si leggono data, kWh e costo.
 * Toccando un consumatore (o il totale) si apre il **dettaglio**: tutti i periodi, andamento a 30 giorni e 12 mesi.
 * **Bolletta stimata** del mese, con le voci e la previsione a fine mese.

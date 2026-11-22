@@ -27,32 +27,35 @@ const PERIODS = ["today","yesterday","week","last_week","month","last_month","ye
 const SCALE = { today: 1, yesterday: 1.25, week: 6.4, last_week: 8.1, month: 21.5, last_month: 34, year: 320, last_year: 365 };
 const PRICE = 0.19;
 const periods = (daily) => Object.fromEntries(PERIODS.map((p) => [p, { k: +(daily * SCALE[p]).toFixed(3), c: +(daily * SCALE[p] * PRICE).toFixed(2) }]));
-// [chiave, nome, icona, W adesso, kWh al giorno, sensore di potenza?, sotto il contatore?]
+// [chiave, nome, icona, W adesso, kWh al giorno, sensore di potenza?, sotto cosa sta ("_meter", chiave di una linea, null)]
 const defs = params.get("empty") ? [] : [
-  ["wb", "Wallbox", "mdi:ev-station", 4148, 14.2, true, true],
-  ["app", "Appartamento", "mdi:home-floor-1", 1511, 6.3, true, true],
-  ["bagno", "Presa bagno blu", "mdi:radiator", 1074, 2.1, true, true],
-  ["lav", "Lavatrice", "mdi:washing-machine", 0, 0.9, true, true],
-  ["lst", "Lavastoviglie", "mdi:dishwasher", 1.1, 1.1, true, true],
-  ["asc", "Asciugatrice", "mdi:tumble-dryer", 2, 1.6, true, true],
-  ["forno", "Forno", "mdi:stove", 0, 0.8, true, true],
-  ["frigo", "Frigorifero", "mdi:fridge", 24.6, 0.75, true, true],
-  ["caffe", "Macchina del caffè", "mdi:coffee", 0, 0.25, true, true],
-  ["autoclave", "Autoclave", "mdi:water-pump", 0, 0.6, true, true],
-  ["ups", "UPS e server", "mdi:server", null, 2.1, false, true],
+  ["wb", "Wallbox", "mdi:ev-station", 4148, 14.2, true, "_meter"],
+  ["app", "Appartamento", "mdi:home-floor-1", 1511, 12.4, true, "_meter"],
+  ["bagno", "Presa bagno blu", "mdi:radiator", 1074, 2.1, true, "app"],
+  ["lav", "Lavatrice", "mdi:washing-machine", 0, 0.9, true, "app"],
+  ["lst", "Lavastoviglie", "mdi:dishwasher", 1.1, 1.1, true, "app"],
+  ["asc", "Asciugatrice", "mdi:tumble-dryer", 2, 1.6, true, "app"],
+  ["forno", "Forno", "mdi:stove", 0, 0.8, true, "app"],
+  ["frigo", "Frigorifero", "mdi:fridge", 24.6, 0.75, true, "app"],
+  ["caffe", "Macchina del caffè", "mdi:coffee", 0, 0.25, true, "app"],
+  ["autoclave", "Autoclave", "mdi:water-pump", 0, 0.6, true, "_meter"],
+  ["ups", "UPS e server", "mdi:server", null, 2.1, false, "_meter"],
 ];
 const meterW = Number(params.get("load") || 7399);
 const states = { "sensor.linea_16a_power": { state: String(meterW), attributes: { unit_of_measurement: "W" } } };
-const consumers = defs.map(([key, name, icon, w, daily, hasPower, inMeter]) => {
+const consumers = defs.map(([key, name, icon, w, daily, hasPower, parent]) => {
   if (hasPower) states[`sensor.${key}_power`] = { state: String(w), attributes: { unit_of_measurement: "W" } };
-  return { key, name, icon, power_entity: hasPower ? `sensor.${key}_power` : null, energy_entity: `sensor.${key}_energy`, in_meter: inMeter, power: w, periods: periods(daily), entities: {} };
+  const kids = defs.filter((d) => d[6] === key);
+  const c = { key, name, icon, power_entity: hasPower ? `sensor.${key}_power` : null, energy_entity: `sensor.${key}_energy`, parent, in_meter: parent !== null, power: w, periods: periods(daily), entities: {} };
+  if (kids.length) c.rest = { power: Math.max(w - kids.reduce((a, d) => a + (d[3] || 0), 0), 0), periods: periods(Math.max(daily - kids.reduce((a, d) => a + d[4], 0), 0)) };
+  return c;
 });
 const meterDaily = 38.9;
-const sumDaily = defs.filter((d) => d[6]).reduce((a, d) => a + d[4], 0);
+const sumDaily = defs.filter((d) => d[6] === "_meter").reduce((a, d) => a + d[4], 0);
 const bill = (k) => { const e = k * 0.099 + 6, t = k * 0.00889 + 12.3, o = k * 0.0424, a = k * 0.0227, iva = (e + t + o + a) * 0.1; return { kwh: +k.toFixed(1), energia: +e.toFixed(2), trasporto: +t.toFixed(2), oneri: +o.toFixed(2), accise: +a.toFixed(2), iva: +iva.toFixed(2), totale: +(e + t + o + a + iva).toFixed(2) }; };
 const info = {
   entry_id: "dev", version: "0.1.0", now: new Date().toISOString(),
-  tariff: { mode: "entity", band: 3, price: 0.099, full_price: 0.19 }, contract_kw: 6, available_kw: 6.6, overload: params.get("overload") ? 1 : 0,
+  tariff: { mode: "entity", band: 3, price: 0.099, full_price: 0.19 }, contract_kw: 6, contract_base_kw: 3, contract_f3_kw: 6, available_kw: 6.6, overload: params.get("overload") ? 1 : 0,
   bill: params.get("bill") === "0" ? { enabled: false } : { enabled: true, month: bill(857), last_month: bill(1316), year: bill(8147), last_year: bill(2062), forecast: bill(1180) },
   peak: { w: 7421, at: "00:42" },
   meter: { key: "_meter", name: "Contatore", icon: "mdi:meter-electric", power_entities: ["sensor.linea_16a_power"], energy_entities: ["sensor.linea_16a_energy"], power: meterW, periods: periods(meterDaily),

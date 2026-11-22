@@ -89,7 +89,7 @@ class Source:
     icon: str = "mdi:power-plug"
     power_entities: tuple[str, ...] = ()
     energy_entities: tuple[str, ...] = ()
-    in_meter: bool = True
+    parent: str = METER          # sotto cosa sta: il contatore generale, un altro consumatore (la sua chiave) o niente ("")
 
     @property
     def from_power(self) -> bool:
@@ -101,6 +101,10 @@ class Source:
         return "|".join(self.energy_entities)
 
 
+PARENT_METER = "_meter"          # valori del campo «si trova sotto» di un consumatore
+PARENT_NONE = "_none"
+
+
 def parse_consumer(key: str, data: dict[str, Any]) -> Source | None:
     power = _entities(data.get("power_entity"))[:1]
     energy = _entities(data.get("energy_entity"))[:1]
@@ -108,7 +112,19 @@ def parse_consumer(key: str, data: dict[str, Any]) -> Source | None:
     if not name or not (power or energy):
         return None
     icon = str(data.get("icon") or "").strip() or "mdi:power-plug"
-    return Source(key, name, icon, power, energy, bool(data.get("in_meter", True)))
+    parent = str(data.get("parent") or PARENT_METER)
+    return Source(key, name, icon, power, energy, "" if parent == PARENT_NONE else METER if parent == PARENT_METER else parent)
+
+
+def link_consumers(consumers: dict[str, Source]) -> dict[str, Source]:
+    """Sistema i legami: un genitore che non esiste più, sé stesso o a sua volta figlio vale come il contatore generale (un solo livello)."""
+    out: dict[str, Source] = {}
+    for key, src in consumers.items():
+        p = src.parent
+        if p not in ("", METER) and (p == key or p not in consumers or consumers[p].parent not in ("", METER)):
+            src = Source(src.key, src.name, src.icon, src.power_entities, src.energy_entities, METER)
+        out[key] = src
+    return out
 
 
 def parse_meter(options: dict[str, Any]) -> Source:
@@ -174,7 +190,7 @@ class Bill:
     charges_kwh: float = 0.0          # oneri di sistema
     excise_kwh: float = 0.0           # accise
     vat: float = 10.0                 # IVA, %
-    contract_kw: float = 3.0
+    contract_kw: float = 3.0          # potenza impegnata (quella di base, anche con una potenza diversa in F3)
 
     def cost(self, kwh: float, energy_eur: float) -> float:
         """Costo di un consumo: solo energia, oppure con le quote variabili e l'IVA."""
@@ -217,6 +233,13 @@ def parse_bill(options: dict[str, Any]) -> Bill:
 
 
 # ---------------------------------------------------------------------------------------- letture
+def contract_power(options: dict[str, Any], band_no: int) -> float:
+    """Potenza di contratto (kW) nella fascia indicata: in F3 può essere più alta (sperimentazione ARERA per la ricarica dei veicoli)."""
+    base = _num(options.get("contract_kw"), 3.0, 0.5, 1000)
+    f3 = _num(options.get("contract_kw_f3"), 0.0, 0, 1000)
+    return f3 if band_no == 3 and f3 > 0 else base
+
+
 def to_kwh(value: float, unit: str | None) -> float:
     u = (unit or "kWh").strip().lower()
     if u == "wh":

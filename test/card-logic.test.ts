@@ -11,7 +11,7 @@ const amounts = (k: number, c = k * 0.2): Record<Period, Amount> => Object.fromE
 const st = (state: string, unit = "W"): HassState => ({ state, attributes: { unit_of_measurement: unit } });
 
 function consumer(key: string, name: string, k: number, over: Partial<ConsumerInfo> = {}): ConsumerInfo {
-  return { key, name, icon: "mdi:power-plug", power_entity: `sensor.${key}_power`, energy_entity: null, in_meter: true, power: null, periods: amounts(k), ...over };
+  return { key, name, icon: "mdi:power-plug", power_entity: `sensor.${key}_power`, energy_entity: null, parent: METER, in_meter: true, power: null, periods: amounts(k), ...over };
 }
 function info(over: Partial<ConsumiInfo> = {}): ConsumiInfo {
   return {
@@ -79,7 +79,7 @@ test("potenze dal vivo", () => {
   // senza lo stato del contatore vale l'ultimo dato dell'integrazione
   assert.equal(livePowers(info(), {}).meter, 3000);
   // chi è fuori dal contatore non riduce il non monitorato
-  const outside = info({ consumers: [consumer("wb", "Wallbox", 5, { in_meter: false })] });
+  const outside = info({ consumers: [consumer("wb", "Wallbox", 5, { parent: null, in_meter: false })] });
   assert.equal(livePowers(outside, STATES).unmonitored, 3000);
 });
 
@@ -125,11 +125,28 @@ test("classifica di un periodo", () => {
 });
 
 test("classifica: senza consumatori sotto il contatore non c'è il non monitorato", () => {
-  const i = info({ consumers: [consumer("wb", "Wallbox", 5, { in_meter: false })] });
+  const i = info({ consumers: [consumer("wb", "Wallbox", 5, { parent: null, in_meter: false })] });
   const r = ranking(i, "today", livePowers(i, STATES), false);
   assert.deepEqual(r.rows.map((x) => x.name), ["Wallbox"]);
   assert.equal(r.rows[0].share, null);
   assert.equal(r.rows[0].outside, true);
+});
+
+test("linea che contiene altri consumatori: in classifica va il suo resto", () => {
+  const app = consumer("app", "Appartamento", 6, { rest: { power: 300, periods: amounts(4) } });
+  const i = info({ consumers: [app, consumer("lav", "Lavatrice", 2, { parent: "app" }), consumer("wb", "Wallbox", 3)], unmonitored: { key: UNMONITORED, power: 0, periods: amounts(1) } });
+  const states = { ...STATES, "sensor.app_power": st("900"), "sensor.lav_power": st("600"), "sensor.wb_power": st("2000") };
+  const live = livePowers(i, states);
+  assert.equal(live.rest.app, 300);
+  assert.equal(live.unmonitored, 100);                       // 3000 - 900 (linea) - 2000 (wallbox): la lavatrice è già nella linea
+  const now = ranking(i, "now", live, false);
+  assert.deepEqual(now.rows.map((x) => [x.name, x.value]), [["Wallbox", 2000], ["Lavatrice", 600], ["Appartamento · resto", 300], ["Non monitorato", 100]]);
+  assert.equal(now.rows.reduce((a, x) => a + (x.value ?? 0), 0), 3000);
+  assert.equal(now.rows[2].key, "app");
+  assert.equal(now.rows[2].rest, true);
+  const month = ranking(i, "month", live, false);
+  assert.deepEqual(month.rows.map((x) => [x.name, x.value, Math.round((x.cost ?? 0) * 100) / 100]), [["Appartamento · resto", 4, 0.8], ["Wallbox", 3, 0.6], ["Lavatrice", 2, 0.4], ["Non monitorato", 1, 0.2]]);
+  assert.equal(Math.round(segments(month.rows).reduce((a, x) => a + x.pct, 0)), 100);
 });
 
 test("barra a segmenti", () => {
@@ -138,7 +155,7 @@ test("barra a segmenti", () => {
   assert.deepEqual(s.map((x) => [x.name, Math.round(x.pct), x.hatched]), [["Wallbox", 50, false], ["Non monitorato", 30, true], ["Lavatrice", 20, false]]);
   assert.equal(Math.round(s.reduce((a, x) => a + x.pct, 0)), 100);
   // chi è fuori dal contatore non entra nella barra
-  const out = info({ consumers: [consumer("lav", "Lavatrice", 2), consumer("wb", "Wallbox", 50, { in_meter: false })] });
+  const out = info({ consumers: [consumer("lav", "Lavatrice", 2), consumer("wb", "Wallbox", 50, { parent: null, in_meter: false })] });
   assert.deepEqual(segments(ranking(out, "month", livePowers(out, STATES), false).rows).map((x) => x.name), ["Non monitorato", "Lavatrice"]);
   assert.deepEqual(segments([]), []);
 });

@@ -260,11 +260,30 @@ def test_forecast():
 # ------------------------------------------------------------------ configurazione
 def test_parse_consumer():
     c = e.parse_consumer("x", {"name": " Lavatrice ", "icon": "mdi:washing-machine", "power_entity": "sensor.lav_power", "energy_entity": ""})
-    assert c.name == "Lavatrice" and c.from_power and c.in_meter
+    assert c.name == "Lavatrice" and c.from_power and c.parent == e.METER
     assert e.parse_consumer("x", {"name": "Solo nome"}) is None
     assert e.parse_consumer("x", {"name": "", "power_entity": "sensor.a"}) is None
-    c = e.parse_consumer("x", {"name": "Wallbox", "energy_entity": "sensor.wb_energy", "power_entity": "non valido", "in_meter": False})
-    assert c.power_entities == () and not c.from_power and not c.in_meter and c.icon == "mdi:power-plug"
+    c = e.parse_consumer("x", {"name": "Wallbox", "energy_entity": "sensor.wb_energy", "power_entity": "non valido", "parent": "_none"})
+    assert c.power_entities == () and not c.from_power and c.parent == "" and c.icon == "mdi:power-plug"
+    assert e.parse_consumer("x", {"name": "Forno", "power_entity": "sensor.f", "parent": "app"}).parent == "app"
+
+
+def test_link_consumers_keeps_one_level():
+    mk = lambda key, parent: e.parse_consumer(key, {"name": key, "power_entity": f"sensor.{key}", "parent": parent})  # noqa: E731
+    linked = e.link_consumers({"app": mk("app", "_meter"), "forno": mk("forno", "app"), "luce": mk("luce", "forno"), "solo": mk("solo", "solo"), "orfano": mk("orfano", "sparito"), "fuori": mk("fuori", "_none")})
+    assert linked["forno"].parent == "app"
+    assert linked["luce"].parent == e.METER        # il suo genitore è a sua volta un figlio
+    assert linked["solo"].parent == e.METER
+    assert linked["orfano"].parent == e.METER
+    assert linked["fuori"].parent == ""
+
+
+def test_contract_power_by_band():
+    assert e.contract_power({"contract_kw": 3}, 3) == 3
+    assert e.contract_power({"contract_kw": 3, "contract_kw_f3": 6}, 1) == 3
+    assert e.contract_power({"contract_kw": 3, "contract_kw_f3": 6}, 2) == 3
+    assert e.contract_power({"contract_kw": 3, "contract_kw_f3": 6}, 3) == 6
+    assert e.contract_power({}, 3) == 3
 
 
 def test_parse_meter():

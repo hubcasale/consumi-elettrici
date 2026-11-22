@@ -15,10 +15,10 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_CONTRACT_KW,
     CONF_NOTIFY,
     CONF_OVERLOAD,
     CONF_OVERLOAD_MINUTES,
+    CONF_OVERLOAD_NOTIFY,
     CONF_REPORT,
     DEFAULTS,
     DOMAIN,
@@ -45,8 +45,10 @@ from .engine import (
     PowerHold,
     Source,
     band,
+    contract_power,
     day_labels,
     forecast_month,
+    link_consumers,
     month_labels,
     monthly_report,
     overload_message,
@@ -85,15 +87,22 @@ class ConsumiController:
         options = {**DEFAULTS, **entry.options}
         self.options = options
         self.meter: Source = parse_meter(options)
-        self.consumers: dict[str, Source] = {}
+        parsed: dict[str, Source] = {}
         for sid, sub in entry.subentries.items():
             if sub.subentry_type == SUBENTRY_CONSUMER and (src := parse_consumer(sid, dict(sub.data))):
-                self.consumers[sid] = src
+                parsed[sid] = src
+        self.consumers: dict[str, Source] = link_consumers(parsed)
         self.sources: dict[str, Source] = {METER: self.meter, **self.consumers}
+        # chi sta direttamente sotto il contatore (si toglie dal non monitorato) e chi sotto un altro consumatore
+        self.top: list[str] = [k for k, s in self.consumers.items() if s.parent == METER]
+        self.children: dict[str, list[str]] = {}
+        for key, src in self.consumers.items():
+            if src.parent in self.consumers:
+                self.children.setdefault(src.parent, []).append(key)
         self.tariff = parse_tariff(options)
         self.bill = parse_bill(options)
-        self.contract_kw: float = self.bill.contract_kw
-        self.notify: list[str] = [s for s in options.get(CONF_NOTIFY) or [] if isinstance(s, str) and s.startswith("notify.")]
+        self.notify: list[str] = _services(options.get(CONF_NOTIFY))
+        self.overload_notify: list[str] = _services(options.get(CONF_OVERLOAD_NOTIFY)) or self.notify
         # entità ascoltate -> [(sorgente, ruolo)]
         self._watch: dict[str, list[tuple[str, str]]] = {}
         for key, src in self.sources.items():
@@ -258,18 +267,24 @@ class ConsumiController:
         async_dispatcher_send(self.hass, self.signal)
 
     # ------------------------------------------------------------------ avvisi
+    def contract_kw(self, when: datetime | None = None) -> float:
+        """Potenza di contratto valida adesso (o all'ora locale `when`): in F3 può essere più alta."""
+        return contract_power(self.options, band(when or dt_util.now()))
+
     def _check_overload(self, watt: float, ts: float) -> None:
-        level = self.overload.update(watt, self.contract_kw, ts, float(self.options.get(CONF_OVERLOAD_MINUTES) or 3))
+        contract = self.contract_kw(dt_util.as_local(dt_util.utc_from_timestamp(ts)))
+        level = self.overload.update(watt, contract, ts, float(self.options.get(CONF_OVERLOAD_MINUTES) or 3))
         if not level:
             return
-        top = sorted(((s.name, w) for k, s in self.consumers.items() if (w := self.power(k)) is not None and w >= OVERLOAD_MIN_W), key=lambda x: -x[1])[:5]
-        title, message = overload_message(level, watt, self.contract_kw, top)
-        self.hass.bus.async_fire(EVENT_OVERLOAD, {"level": level, "power": round(watt), "contract_kw": self.contract_kw, "consumers": [{"name": n, "power": round(w)} for n, w in top], "title": title, "message": message})
+        # le linee che contengono altri consumatori non dicono cosa spegnere: nell'elenco vanno i singoli
+        top = sorted(((s.name, w) for k, s in self.consumers.items() if k not in self.children and (w := self.power(k)) is not None and w >= OVERLOAD_MIN_W), key=lambda x: -x[1])[:5]
+        title, message = overload_message(level, watt, contract, top)
+        self.hass.bus.async_fire(EVENT_OVERLOAD, {"level": level, "power": round(watt), "contract_kw": contract, "consumers": [{"name": n, "power": round(w)} for n, w in top], "title": title, "message": message})
         if self.options.get(CONF_OVERLOAD):
-            self.hass.async_create_task(self._async_notify(title, message))
+            self.hass.async_create_task(self._async_notify(title, message, self.overload_notify))
 
-    async def _async_notify(self, title: str, message: str) -> None:
-        for service in self.notify:
+    async def _async_notify(self, title: str, message: str, services: list[str]) -> None:
+        for service in services:
             name = service.split(".", 1)[1]
             if not self.hass.services.has_service("notify", name):
                 _LOGGER.warning("Servizio di notifica %s non trovato", service)
@@ -287,9 +302,9 @@ class ConsumiController:
         monitored = 0.0
         for key, src in self.consumers.items():
             t = self.ledger.total(key, start, end)
-            if src.in_meter:
+            if src.parent == METER:
                 monitored += t["k"]
-            if t["k"] > 0:
+            if t["k"] > 0 and key not in self.children:
                 ranking.append((src.name, round(t["k"], 2), round(self.bill.cost(t["k"], t["e"]), 2)))
         ranking.sort(key=lambda x: -x[1])
         bill = self.bill.estimate(meter["k"], meter["e"]) if self.bill.enabled else None
@@ -311,7 +326,7 @@ class ConsumiController:
     async def async_send_report(self, period: str = "last_month") -> dict[str, Any]:
         data = self.report(period)
         self.hass.bus.async_fire(EVENT_REPORT, data)
-        await self._async_notify(data["title"], data["message"])
+        await self._async_notify(data["title"], data["message"], self.notify)
         return data
 
     # ------------------------------------------------------------------ storico dalle statistiche di Home Assistant
@@ -381,7 +396,7 @@ class ConsumiController:
         today = now.date()
         meter_sum = self.ledger.summary(METER, today)
         sums = {key: self.ledger.summary(key, today) for key in self.consumers}
-        unmon_sum = unmonitored(meter_sum, [sums[k] for k, s in self.consumers.items() if s.in_meter])
+        unmon_sum = unmonitored(meter_sum, [sums[k] for k in self.top])
 
         def periods(summary: dict[str, dict[str, Any]]) -> dict[str, dict[str, float]]:
             return {name: {"k": round(summary[name]["k"], 3), "c": round(self.bill.cost(summary[name]["k"], summary[name]["e"]), 2)} for name in PERIODS}
@@ -390,8 +405,17 @@ class ConsumiController:
         powers = {key: self.power(key) for key in self.consumers}
         unmon_w = None
         if meter_w is not None:
-            unmon_w = max(meter_w - sum(w for k, w in powers.items() if w is not None and self.consumers[k].in_meter), 0.0)
+            unmon_w = max(meter_w - sum(w for k in self.top if (w := powers[k]) is not None), 0.0)
         b = band(now)
+        contract = contract_power(self.options, b)
+        # il resto di una linea che contiene altri consumatori: quello che misura meno la somma dei suoi figli
+        rest: dict[str, dict[str, Any]] = {}
+        for parent, kids in self.children.items():
+            pw = powers[parent]
+            rest[parent] = {
+                "power": _r(None if pw is None else max(pw - sum(w for k in kids if (w := powers[k]) is not None), 0.0)),
+                "periods": periods(unmonitored(sums[parent], [sums[k] for k in kids])),
+            }
         peak = self.ledger.day(METER, today)
         bill: dict[str, Any] = {"enabled": self.bill.enabled}
         if self.bill.enabled:
@@ -408,15 +432,17 @@ class ConsumiController:
         self._snap = {
             "now": now.isoformat(),
             "tariff": {"mode": self.tariff.mode, "band": b, "price": round(self.price(b), 5), "full_price": round(self.bill.cost(1.0, self.price(b)), 5)},
-            "contract_kw": self.contract_kw,
-            "available_kw": round(self.contract_kw * OVERLOAD_AVAILABLE, 2),
+            "contract_kw": contract,
+            "contract_base_kw": contract_power(self.options, 1),
+            "contract_f3_kw": contract_power(self.options, 3),
+            "available_kw": round(contract * OVERLOAD_AVAILABLE, 2),
             "overload": self.overload.level,
             "bill": bill,
             "peak": {"w": peak.get("p"), "at": peak.get("pt")},
             "sources": {
                 METER: {"power": _r(meter_w), "periods": periods(meter_sum), "bands": {name: [round(x, 3) for x in meter_sum[name]["f"]] for name in LIVE_PERIODS + ("yesterday", "last_month")}},
                 UNMONITORED: {"power": _r(unmon_w), "periods": periods(unmon_sum)},
-                **{key: {"power": _r(powers[key]), "periods": periods(sums[key])} for key in self.consumers},
+                **{key: {"power": _r(powers[key]), "periods": periods(sums[key]), **({"rest": rest[key]} if key in rest else {})} for key in self.consumers},
             },
         }
         return self._snap
@@ -430,6 +456,8 @@ class ConsumiController:
             "now": snap["now"],
             "tariff": snap["tariff"],
             "contract_kw": snap["contract_kw"],
+            "contract_base_kw": snap["contract_base_kw"],
+            "contract_f3_kw": snap["contract_f3_kw"],
             "available_kw": snap["available_kw"],
             "overload": snap["overload"],
             "bill": snap["bill"],
@@ -443,7 +471,8 @@ class ConsumiController:
                     "icon": s.icon,
                     "power_entity": s.power_entities[0] if s.power_entities else None,
                     "energy_entity": s.energy_entities[0] if s.energy_entities else None,
-                    "in_meter": s.in_meter,
+                    "parent": s.parent or None,
+                    "in_meter": s.parent == METER or (s.parent in self.consumers and self.consumers[s.parent].parent == METER),
                     **src[key],
                 }
                 for key, s in self.consumers.items()
@@ -463,7 +492,7 @@ class ConsumiController:
             key: {"k": [round(p["k"], 3) for p in points], "c": [round(self.bill.cost(p["k"], p["e"]), 2) for p in points]} for key, points in raw.items()
         }
         unmon_k, unmon_c = [], []
-        inside = [k for k, s in self.consumers.items() if s.in_meter]
+        inside = self.top
         for i in range(len(labels)):
             k = max(raw[METER][i]["k"] - sum(raw[c][i]["k"] for c in inside), 0.0)
             e = max(raw[METER][i]["e"] - sum(raw[c][i]["e"] for c in inside), 0.0)
@@ -471,6 +500,10 @@ class ConsumiController:
             unmon_c.append(round(self.bill.cost(k, e), 2))
         series[UNMONITORED] = {"k": unmon_k, "c": unmon_c}
         return {"granularity": granularity, "labels": labels, "series": series}
+
+
+def _services(value: Any) -> list[str]:
+    return [s for s in value or [] if isinstance(s, str) and s.startswith("notify.")]
 
 
 def _r(value: float | None) -> float | None:

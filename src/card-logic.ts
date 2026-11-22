@@ -94,6 +94,12 @@ export interface LivePowers {
   meter: number | null;
   unmonitored: number | null;
   consumers: Record<string, number | null>;
+  /** per le linee che contengono altri consumatori: la loro potenza meno quella dei consumatori che contengono */
+  rest: Record<string, number | null>;
+}
+/** Chiavi dei consumatori che stanno sotto la linea `key`. */
+export function childrenOf(info: ConsumiInfo, key: string): string[] {
+  return info.consumers.filter((c) => c.parent === key).map((c) => c.key);
 }
 /** Potenze lette dagli stati di Home Assistant (aggiornati al secondo); dove manca il sensore vale l'ultimo dato dell'integrazione. */
 export function livePowers(info: ConsumiInfo, states: Record<string, HassState | undefined>): LivePowers {
@@ -105,9 +111,16 @@ export function livePowers(info: ConsumiInfo, states: Record<string, HassState |
     const live = c.power_entity ? parseWatt(states[c.power_entity]) : null;
     const w = c.power_entity ? (live ?? (states[c.power_entity] ? null : c.power)) : null;
     consumers[c.key] = w;
-    if (w !== null && c.in_meter) inside += w;
+    if (w !== null && c.parent === METER) inside += w;
   }
-  return { meter, unmonitored: meter === null ? null : Math.max(meter - inside, 0), consumers };
+  const rest: Record<string, number | null> = {};
+  for (const c of info.consumers) {
+    const kids = childrenOf(info, c.key);
+    if (!kids.length) continue;
+    const own = consumers[c.key];
+    rest[c.key] = own === null ? null : Math.max(own - kids.reduce((a, k) => a + (consumers[k] ?? 0), 0), 0);
+  }
+  return { meter, unmonitored: meter === null ? null : Math.max(meter - inside, 0), consumers, rest };
 }
 
 // ------------------------------------------------------------------ classifica
@@ -125,6 +138,8 @@ export interface Row {
   bar: number;
   kind: "consumer" | "unmonitored";
   outside: boolean;
+  /** riga di una linea che contiene altri consumatori: il valore è il suo resto, così le righe non si sovrappongono */
+  rest: boolean;
 }
 
 export interface Ranking {
@@ -134,23 +149,26 @@ export interface Ranking {
   hidden: number;
 }
 
-/** Righe ordinate dal consumo più alto; il non monitorato sta in classifica come gli altri. */
+/** Righe ordinate dal consumo più alto; il non monitorato sta in classifica come gli altri.
+ *  Una linea che contiene altri consumatori compare con il suo resto: ogni riga è una fetta diversa del totale. */
 export function ranking(info: ConsumiInfo, tab: Tab, live: LivePowers, dark: boolean, config: Pick<CardConfig, "max_rows" | "hide_idle"> = {}, expanded = false): Ranking {
   const now = tab === "now";
   const total = now ? live.meter : info.meter.periods[tab].k;
   const totalCost = now ? null : info.meter.periods[tab].c;
   const rows: Row[] = info.consumers.map((c, i) => {
-    const value = now ? live.consumers[c.key] : c.periods[tab].k;
+    const line = childrenOf(info, c.key).length > 0;
+    const value = now ? (line ? live.rest[c.key] : live.consumers[c.key]) : line && c.rest ? c.rest.periods[tab].k : c.periods[tab].k;
+    const cost = now ? null : line && c.rest ? c.rest.periods[tab].c : c.periods[tab].c;
     return {
-      key: c.key, name: c.name, icon: c.icon || "mdi:power-plug", color: colorFor(i, dark), value, cost: now ? null : c.periods[tab].c,
-      share: c.in_meter && value !== null && total ? Math.min(value / total, 1) : null, bar: 0, kind: "consumer", outside: !c.in_meter,
+      key: c.key, name: line ? `${c.name} · resto` : c.name, icon: c.icon || "mdi:power-plug", color: colorFor(i, dark), value, cost,
+      share: c.in_meter && value !== null && total ? Math.min(value / total, 1) : null, bar: 0, kind: "consumer", outside: !c.in_meter, rest: line,
     };
   });
   const unmon = now ? live.unmonitored : info.unmonitored.periods[tab].k;
   if (info.consumers.some((c) => c.in_meter)) {
     rows.push({
       key: UNMONITORED, name: "Non monitorato", icon: "mdi:help-circle-outline", color: dark ? UNMONITORED_DARK : UNMONITORED_LIGHT, value: unmon,
-      cost: now ? null : info.unmonitored.periods[tab].c, share: unmon !== null && total ? Math.min(unmon / total, 1) : null, bar: 0, kind: "unmonitored", outside: false,
+      cost: now ? null : info.unmonitored.periods[tab].c, share: unmon !== null && total ? Math.min(unmon / total, 1) : null, bar: 0, kind: "unmonitored", outside: false, rest: false,
     });
   }
   rows.sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.name.localeCompare(b.name));

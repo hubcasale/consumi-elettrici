@@ -9,10 +9,12 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
+from .engine import PARENT_METER, PARENT_NONE
 from .const import (
     CONF_BILL,
     CONF_CHARGES_KWH,
     CONF_CONTRACT_KW,
+    CONF_CONTRACT_KW_F3,
     CONF_ENERGY_ENTITY,
     CONF_ENERGY_FIXED,
     CONF_ENTITY_F1,
@@ -21,13 +23,14 @@ from .const import (
     CONF_EXCISE_KWH,
     CONF_FULL_COST,
     CONF_ICON,
-    CONF_IN_METER,
     CONF_METER_ENERGY,
     CONF_METER_POWER,
     CONF_NAME,
     CONF_NOTIFY,
     CONF_OVERLOAD,
     CONF_OVERLOAD_MINUTES,
+    CONF_OVERLOAD_NOTIFY,
+    CONF_PARENT,
     CONF_POWER_ENTITY,
     CONF_PRICE,
     CONF_PRICE_ENTITY,
@@ -60,6 +63,7 @@ def _number(lo: float, hi: float, step: float | str, unit: str) -> selector.Numb
 
 _PRICE = _number(0, 5, "any", "€/kWh")
 _KW = _number(0.5, 100, 0.5, "kW")
+_KW_F3 = _number(0, 100, 0.5, "kW")
 _MODE = selector.SelectSelector(
     selector.SelectSelectorConfig(options=["fixed", "entity", "bands"], translation_key="tariff_mode", mode=selector.SelectSelectorMode.LIST)
 )
@@ -98,6 +102,7 @@ class ConsumiConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_METER_POWER): _POWER_MANY,
                 vol.Optional(CONF_METER_ENERGY): _ENERGY_MANY,
                 vol.Required(CONF_CONTRACT_KW, default=DEFAULTS[CONF_CONTRACT_KW]): _KW,
+                vol.Required(CONF_CONTRACT_KW_F3, default=DEFAULTS[CONF_CONTRACT_KW_F3]): _KW_F3,
                 vol.Optional(CONF_PRICE_ENTITY): _PRICE_ENTITY,
                 vol.Required(CONF_PRICE, default=DEFAULTS[CONF_PRICE]): _PRICE,
             }
@@ -133,6 +138,7 @@ class ConsumiOptionsFlow(OptionsFlow):
                 vol.Required(CONF_METER_POWER): _POWER_MANY,
                 vol.Optional(CONF_METER_ENERGY): _ENERGY_MANY,
                 vol.Required(CONF_CONTRACT_KW): _KW,
+                vol.Required(CONF_CONTRACT_KW_F3): _KW_F3,
             }
         )
         errors = {CONF_METER_POWER: "meter_required"} if user_input is not None and not user_input.get(CONF_METER_POWER) else None
@@ -178,13 +184,16 @@ class ConsumiOptionsFlow(OptionsFlow):
         for chosen in self._current().get(CONF_NOTIFY) or []:
             if chosen not in services:
                 services.append(chosen)
+        for chosen in self._current().get(CONF_OVERLOAD_NOTIFY) or []:
+            if chosen not in services:
+                services.append(chosen)
+        who = selector.SelectSelector(selector.SelectSelectorConfig(options=services, multiple=True, custom_value=True, mode=selector.SelectSelectorMode.DROPDOWN))
         schema = vol.Schema(
             {
-                vol.Optional(CONF_NOTIFY): selector.SelectSelector(
-                    selector.SelectSelectorConfig(options=services, multiple=True, custom_value=True, mode=selector.SelectSelectorMode.DROPDOWN)
-                ),
+                vol.Optional(CONF_NOTIFY): who,
                 vol.Required(CONF_REPORT): selector.BooleanSelector(),
                 vol.Required(CONF_OVERLOAD): selector.BooleanSelector(),
+                vol.Optional(CONF_OVERLOAD_NOTIFY): who,
                 vol.Required(CONF_OVERLOAD_MINUTES): _number(1, 60, 1, "min"),
             }
         )
@@ -194,14 +203,29 @@ class ConsumiOptionsFlow(OptionsFlow):
 class ConsumerFlow(ConfigSubentryFlow):
     """Aggiunge o modifica un consumatore: nome, icona, sensore di potenza e/o di energia."""
 
-    def _schema(self) -> vol.Schema:
+    def _parents(self, own_id: str | None) -> list[selector.SelectOptionDict]:
+        """Dove può stare un consumatore: sotto il contatore, sotto una linea (un altro consumatore) o da nessuna parte. Un solo livello."""
+        italian = self.hass.config.language.startswith("it")
+        subs = {sid: sub for sid, sub in self._get_entry().subentries.items() if sub.subentry_type == SUBENTRY_CONSUMER}
+        has_children = any(sub.data.get(CONF_PARENT) == own_id for sub in subs.values()) if own_id else False
+        options = [selector.SelectOptionDict(value=PARENT_METER, label="Contatore generale" if italian else "Main meter")]
+        if not has_children:
+            for sid, sub in subs.items():
+                if sid != own_id and sub.data.get(CONF_PARENT, PARENT_METER) in (PARENT_METER, PARENT_NONE):
+                    options.append(selector.SelectOptionDict(value=sid, label=sub.title))
+        options.append(selector.SelectOptionDict(value=PARENT_NONE, label="Nessuno: linea separata dal contatore" if italian else "None: a line outside the meter"))
+        return options
+
+    def _schema(self, own_id: str | None = None) -> vol.Schema:
         return vol.Schema(
             {
                 vol.Required(CONF_NAME): selector.TextSelector(),
                 vol.Optional(CONF_ICON): selector.IconSelector(),
                 vol.Optional(CONF_POWER_ENTITY): _POWER,
                 vol.Optional(CONF_ENERGY_ENTITY): _ENERGY,
-                vol.Required(CONF_IN_METER, default=True): selector.BooleanSelector(),
+                vol.Required(CONF_PARENT, default=PARENT_METER): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=self._parents(own_id), mode=selector.SelectSelectorMode.DROPDOWN)
+                ),
             }
         )
 
@@ -211,7 +235,7 @@ class ConsumerFlow(ConfigSubentryFlow):
             CONF_ICON: user_input.get(CONF_ICON) or DEFAULT_ICON,
             CONF_POWER_ENTITY: user_input.get(CONF_POWER_ENTITY) or "",
             CONF_ENERGY_ENTITY: user_input.get(CONF_ENERGY_ENTITY) or "",
-            CONF_IN_METER: bool(user_input.get(CONF_IN_METER, True)),
+            CONF_PARENT: user_input.get(CONF_PARENT) or PARENT_METER,
         }
         errors: dict[str, str] = {}
         if not data[CONF_NAME]:
@@ -223,6 +247,8 @@ class ConsumerFlow(ConfigSubentryFlow):
             errors[CONF_NAME] = "name_exists"
         if not data[CONF_POWER_ENTITY] and not data[CONF_ENERGY_ENTITY]:
             errors["base"] = "sensor_required"
+        if data[CONF_PARENT] not in {o["value"] for o in self._parents(own_id)}:
+            errors[CONF_PARENT] = "parent_invalid"
         return data, errors
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -241,5 +267,5 @@ class ConsumerFlow(ConfigSubentryFlow):
             if not errors:
                 return self.async_update_and_abort(self._get_entry(), subentry, title=data[CONF_NAME], data=data)
         return self.async_show_form(
-            step_id="reconfigure", data_schema=self.add_suggested_values_to_schema(self._schema(), user_input or dict(subentry.data)), errors=errors
+            step_id="reconfigure", data_schema=self.add_suggested_values_to_schema(self._schema(subentry.subentry_id), user_input or dict(subentry.data)), errors=errors
         )
