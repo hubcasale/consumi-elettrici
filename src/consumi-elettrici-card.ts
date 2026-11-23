@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import "./bars";
 import "./card-editor";
+import { tintColor } from "./color-logic";
 import "./detail-dialog";
 import {
   METER, PREVIOUS, TABS, UNMONITORED, cardSize, chartRange, colorFor, fmtEur, fmtKwh, fmtPct, fmtPrice, fmtWatt, livePowers, meterModel, monthName, ranking, rgba,
@@ -36,6 +37,10 @@ export class ConsumiElettriciCard extends LitElement {
     this._tab = config.default_tab && TABS.some((t) => t.id === config.default_tab) ? config.default_tab : "now";
     this._info = null;
     this._infoAt = 0;
+    const tint = tintColor(config.color);
+    this.toggleAttribute("tinted", tint !== undefined);
+    if (tint !== undefined) this.style.setProperty("--ce-tint", tint);
+    else this.style.removeProperty("--ce-tint");
   }
   getCardSize(): number {
     const rows = this._config.max_rows && this._config.max_rows > 0 ? this._config.max_rows : (this._info?.consumers.length ?? 4) + 1;
@@ -239,6 +244,8 @@ export class ConsumiElettriciCard extends LitElement {
   static styles = css`
     :host { display: block; }
     ha-card { padding: 12px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; color: var(--primary-text-color, #212121); }
+    /* opzione color: la tinta si mescola allo sfondo della scheda del tema (vale uguale su tema chiaro e scuro) */
+    :host([tinted]) ha-card { background: color-mix(in srgb, var(--ce-tint) 30%, var(--ha-card-background, var(--card-background-color, #fff))); border: 1px solid color-mix(in srgb, var(--ce-tint) 55%, transparent); }
     button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
     .pad { padding: 8px; }
     .msg { color: var(--secondary-text-color, #727272); font-size: 14px; line-height: 1.4; padding: 8px 4px; }

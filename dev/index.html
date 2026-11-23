@@ -87,6 +87,7 @@ const config = { type: "custom:consumi-elettrici-card" };
 if (params.get("tab")) config.default_tab = params.get("tab");
 if (params.get("rows")) config.max_rows = Number(params.get("rows"));
 if (params.get("idle")) config.hide_idle = true;
+if (params.get("colore")) config.color = params.get("colore");
 card.setConfig(config);
 card.hass = hass;
 document.getElementById("root").appendChild(card);

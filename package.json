@@ -1,6 +1,6 @@
 {
   "name": "consumi-elettrici",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scheda Lovelace dei consumi elettrici (potenza, classifica dei consumatori, energia e costo per periodo), servita dall'integrazione consumi_elettrici.",
   "license": "MIT",
   "author": "Corrado Gamberoni",

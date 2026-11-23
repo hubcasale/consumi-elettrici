@@ -119,6 +119,7 @@ hide_idle: true        # in «Adesso» nasconde i consumatori fermi
 show_chart: false
 show_bands: false
 show_bill: false
+color: purple          # colore proprio della scheda: sfondo tinto e bordo (nome di Home Assistant o colore CSS)
 ```
 
 * In alto la **potenza di adesso** con la barra rispetto al contratto, oppure i kWh e il costo del periodo scelto.

@@ -108,4 +108,6 @@ export interface CardConfig {
   show_chart?: boolean;
   show_bill?: boolean;
   show_bands?: boolean;
+  /** colore proprio della scheda: lo sfondo ne prende una tinta e il bordo lo segue; nome della tavolozza di Home Assistant o colore CSS */
+  color?: string;
 }

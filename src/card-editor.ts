@@ -8,7 +8,7 @@ interface FormSchema {
   selector: Record<string, unknown>;
 }
 
-const MANAGED = ["title", "header", "default_tab", "max_rows", "hide_idle", "show_chart", "show_bands", "show_bill"];
+const MANAGED = ["title", "header", "default_tab", "max_rows", "hide_idle", "show_chart", "show_bands", "show_bill", "color"];
 const LABELS: Record<string, string> = {
   title: "Titolo",
   header: "Mostra titolo, fascia e prezzo",
@@ -18,10 +18,12 @@ const LABELS: Record<string, string> = {
   show_chart: "Mostra il grafico",
   show_bands: "Mostra i kWh per fascia",
   show_bill: "Mostra la bolletta stimata",
+  color: "Colore della scheda",
 };
 const HELP: Record<string, string> = {
   max_rows: "Gli altri si vedono con «Mostra tutti».",
   show_bill: "Compare solo se la stima è attiva nelle opzioni dell'integrazione.",
+  color: "Tinge lo sfondo e il bordo della scheda, come un blocco colorato della plancia. Nessuno lascia l'aspetto del tema.",
 };
 
 /** Editor visuale della scheda: solo quello che riguarda l'aspetto. Contatore, tariffa e consumatori stanno nell'integrazione. */
@@ -43,6 +45,7 @@ export class ConsumiElettriciCardEditor extends LitElement {
       { name: "show_chart", selector: { boolean: {} } },
       { name: "show_bands", selector: { boolean: {} } },
       { name: "show_bill", selector: { boolean: {} } },
+      { name: "color", selector: { ui_color: { include_none: true } } },
     ];
   }
 
@@ -62,6 +65,8 @@ export class ConsumiElettriciCardEditor extends LitElement {
     if (v.show_chart === false) next.show_chart = false;
     if (v.show_bands === false) next.show_bands = false;
     if (v.show_bill === false) next.show_bill = false;
+    // il selettore del colore, svuotato, non manda la chiave; «nessuno» vuol dire senza colore
+    if (typeof v.color === "string" && v.color.trim() && v.color !== "none") next.color = v.color.trim();
     this._config = next;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: next }, bubbles: true, composed: true }));
   }
@@ -78,6 +83,7 @@ export class ConsumiElettriciCardEditor extends LitElement {
       show_chart: c.show_chart !== false,
       show_bands: c.show_bands !== false,
       show_bill: c.show_bill !== false,
+      color: typeof c.color === "string" && c.color !== "none" ? c.color : "",
     };
     return html`
       <ha-form
